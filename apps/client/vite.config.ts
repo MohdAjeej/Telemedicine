@@ -29,8 +29,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:5000', changeOrigin: true },
-      '/socket.io': { target: 'http://localhost:5000', changeOrigin: true, ws: true },
+      // 5050, not 5000 — 5000 is a very common default for other local dev
+      // servers (Flask, CRA's proxy default, etc.) and collides easily.
+      '/api': { target: 'http://localhost:5050', changeOrigin: true },
+      '/socket.io': { target: 'http://localhost:5050', changeOrigin: true, ws: true },
     },
   },
   resolve: {

@@ -76,12 +76,13 @@ npm install
 cp apps/server/.env.example apps/server/.env   # set MONGO_URI, JWT secrets
 cp apps/client/.env.example apps/client/.env
 
-npm run dev   # runs client (5173) and server (5000) together via Turborepo
+npm run dev   # runs client (5173) and server (5050) together via Turborepo
 ```
 
-The Vite dev server proxies `/api` and `/socket.io` to `localhost:5000`
+The Vite dev server proxies `/api` and `/socket.io` to `localhost:5050`
 (see `apps/client/vite.config.ts`), so no CORS configuration is needed in
-development.
+development. (Port 5050 — not the more common 5000 — specifically to avoid
+colliding with other local dev servers you might already have running.)
 
 ## Common scripts (from the repo root)
 
