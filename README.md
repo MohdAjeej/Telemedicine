@@ -110,18 +110,21 @@ npm run test --workspace=apps/client
 
 This was built in phases, narrow-and-deep: the infra, auth, and core entity
 modules (Hospitals, Doctors, Patients, Health Officers, Appointments) are
-full production-quality implementations with tests. The remaining modules
-(Consultations, Prescriptions, Vitals, Medical Records, Lab Reports,
-Notifications, Messaging, Video signaling, Reports, Invoices, Payments,
-Audit Logs) have real, working backend CRUD and are wired into the API and
-socket layer — but not every one has a dedicated frontend screen yet (a few,
-like the Admin Audit Log browser and full Video/Chat UI, are intentionally
-left as a documented next step rather than a placeholder that 404s).
+full production-quality implementations with tests. The **Admin panel is
+complete** — Dashboard, Hospital/Doctor/Health Officer/Patient/Appointment
+management, real Analytics charts, Audit Logs (filterable), User Management
+(cross-role listing, suspend/reactivate, permission tags), System Settings,
+and a full Notification Center all have working backend endpoints and
+frontend screens. The remaining modules (Consultations, Prescriptions,
+Vitals, Medical Records, Lab Reports, Notifications, Messaging, Video
+signaling, Reports, Invoices, Payments) have real, working backend CRUD and
+are wired into the API and socket layer — but not every one has a dedicated
+frontend screen yet outside of Admin/Patient views (no stub 404s anywhere,
+just a documented next step).
 
 Known follow-ups:
-- Admin **Role Management** screen (the `Admin.permissions[]` field exists on the model but has no UI yet)
 - Full **WebRTC video call UI** (the signaling backend and room-assignment logic are complete; the client only has a placeholder screen)
-- **Doctor-side** UI for recording vitals, writing prescriptions, and requesting labs (the APIs exist and are exercised by the patient-facing read views)
+- **Doctor-side** UI for recording vitals, writing prescriptions, and requesting labs (the APIs exist and are exercised by the patient-facing read views and the Admin panel)
 - Route-level code-splitting on the client (bundle currently ships as one chunk; see the Vite build warning)
 
 ## License
