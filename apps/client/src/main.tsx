@@ -1,0 +1,23 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { HelmetProvider } from 'react-helmet-async';
+import { store } from './app/store';
+import App from './App';
+import './i18n';
+import './index.css';
+
+const container = document.getElementById('root');
+if (!container) {
+  throw new Error('Root container #root not found');
+}
+
+createRoot(container).render(
+  <StrictMode>
+    <HelmetProvider>
+      <Provider store={store}>
+        <App />
+      </Provider>
+    </HelmetProvider>
+  </StrictMode>,
+);

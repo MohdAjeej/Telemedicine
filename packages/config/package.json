@@ -1,0 +1,17 @@
+{
+  "name": "@telemedicine/config",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "exports": {
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/node": "./eslint/node.js",
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/react": "./typescript/react.json",
+    "./typescript/node": "./typescript/node.json",
+    "./tailwind/preset": "./tailwind/preset.js",
+    "./prettier": "./prettier.js",
+    "./vitest/base": "./vitest/base.ts"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Telemedicine Platform",
+  "short_name": "Telemedicine",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2f6fed",
+  "background_color": "#ffffff"
+}

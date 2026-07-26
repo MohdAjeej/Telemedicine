@@ -1,0 +1,46 @@
+import { Router } from 'express';
+import healthRoutes from './health.routes';
+import authRoutes from '../modules/auth/auth.routes';
+import hospitalRoutes from '../modules/hospital/hospital.routes';
+import doctorRoutes from '../modules/doctor/doctor.routes';
+import patientRoutes from '../modules/patient/patient.routes';
+import healthOfficerRoutes from '../modules/health-officer/healthOfficer.routes';
+import adminRoutes from '../modules/admin/admin.routes';
+import appointmentRoutes from '../modules/appointment/appointment.routes';
+import consultationRoutes from '../modules/consultation/consultation.routes';
+import prescriptionRoutes from '../modules/prescription/prescription.routes';
+import vitalRoutes from '../modules/vital/vital.routes';
+import medicalRecordRoutes from '../modules/medical-record/medicalRecord.routes';
+import labReportRoutes from '../modules/lab-report/labReport.routes';
+import notificationRoutes from '../modules/notification/notification.routes';
+import messageRoutes from '../modules/message/message.routes';
+import reportRoutes from '../modules/reports/report.routes';
+import invoiceRoutes from '../modules/invoice/invoice.routes';
+import paymentRoutes from '../modules/payment/payment.routes';
+import auditLogRoutes from '../modules/audit-log/auditLog.routes';
+import videoRoutes from '../modules/video/video.routes';
+
+const router = Router();
+
+router.use('/health', healthRoutes);
+router.use('/auth', authRoutes);
+router.use('/admin', adminRoutes);
+router.use('/doctors', doctorRoutes);
+router.use('/health-officers', healthOfficerRoutes);
+router.use('/patients', patientRoutes);
+router.use('/hospitals', hospitalRoutes);
+router.use('/appointments', appointmentRoutes);
+router.use('/consultations', consultationRoutes);
+router.use('/prescriptions', prescriptionRoutes);
+router.use('/vitals', vitalRoutes);
+router.use('/medical-records', medicalRecordRoutes);
+router.use('/lab-reports', labReportRoutes);
+router.use('/reports', reportRoutes);
+router.use('/messages', messageRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/invoices', invoiceRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/audit-logs', auditLogRoutes);
+router.use('/video', videoRoutes);
+
+export default router;

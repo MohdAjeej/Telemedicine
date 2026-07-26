@@ -1,0 +1,10 @@
+{
+  "extends": "./packages/config/typescript/node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["scripts"],
+  "ts-node": {
+    "transpileOnly": true
+  }
+}

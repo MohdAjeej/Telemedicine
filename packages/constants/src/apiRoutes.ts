@@ -1,0 +1,25 @@
+export const API_V1_BASE = '/api/v1';
+
+export const API_ROUTES = {
+  AUTH: `${API_V1_BASE}/auth`,
+  ADMIN: `${API_V1_BASE}/admin`,
+  DOCTORS: `${API_V1_BASE}/doctors`,
+  HEALTH_OFFICERS: `${API_V1_BASE}/health-officers`,
+  PATIENTS: `${API_V1_BASE}/patients`,
+  HOSPITALS: `${API_V1_BASE}/hospitals`,
+  APPOINTMENTS: `${API_V1_BASE}/appointments`,
+  PRESCRIPTIONS: `${API_V1_BASE}/prescriptions`,
+  CONSULTATIONS: `${API_V1_BASE}/consultations`,
+  VITALS: `${API_V1_BASE}/vitals`,
+  MEDICAL_RECORDS: `${API_V1_BASE}/medical-records`,
+  LAB_REPORTS: `${API_V1_BASE}/lab-reports`,
+  REPORTS: `${API_V1_BASE}/reports`,
+  ANALYTICS: `${API_V1_BASE}/analytics`,
+  VIDEO: `${API_V1_BASE}/video`,
+  MESSAGES: `${API_V1_BASE}/messages`,
+  NOTIFICATIONS: `${API_V1_BASE}/notifications`,
+  INVOICES: `${API_V1_BASE}/invoices`,
+  PAYMENTS: `${API_V1_BASE}/payments`,
+  AUDIT_LOGS: `${API_V1_BASE}/audit-logs`,
+  HEALTH: `${API_V1_BASE}/health`,
+} as const;
