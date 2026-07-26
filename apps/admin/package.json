@@ -1,0 +1,9 @@
+{
+  "name": "@telemedicine/admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reserved placeholder — see README.md. The real Admin Panel lives in apps/client under /app/admin.",
+  "scripts": {
+    "build": "echo \"apps/admin is a reserved placeholder — see README.md\""
+  }
+}
