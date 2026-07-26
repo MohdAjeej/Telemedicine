@@ -16,3 +16,4 @@ export * from './message.types';
 export * from './invoice.types';
 export * from './payment.types';
 export * from './auditLog.types';
+export * from './settings.types';

@@ -6,6 +6,9 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import DashboardShell, { type DashboardNavItem } from '../components/layout/DashboardShell';
 
 const navItems: DashboardNavItem[] = [
@@ -17,6 +20,9 @@ const navItems: DashboardNavItem[] = [
   { label: 'Appointments', path: '/app/admin/appointments', icon: <EventNoteOutlinedIcon /> },
   { label: 'Analytics', path: '/app/admin/analytics', icon: <AssessmentOutlinedIcon /> },
   { label: 'Audit Logs', path: '/app/admin/audit-logs', icon: <HistoryOutlinedIcon /> },
+  { label: 'User Management', path: '/app/admin/users', icon: <ManageAccountsOutlinedIcon /> },
+  { label: 'Notification Center', path: '/app/admin/notifications', icon: <NotificationsOutlinedIcon /> },
+  { label: 'Settings', path: '/app/admin/settings', icon: <SettingsOutlinedIcon /> },
 ];
 
 export default function AdminLayout() {

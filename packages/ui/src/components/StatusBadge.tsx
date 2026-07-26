@@ -1,6 +1,8 @@
 import { Chip, type ChipProps } from '@mui/material';
 
-const STATUS_COLOR_MAP: Record<string, ChipProps['color']> = {
+/** Exported so other views (e.g. Analytics charts) can reuse the exact same status→color mapping as this badge, instead of inventing a second palette. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared constant, deliberately co-located with the component that owns this mapping
+export const STATUS_COLOR_MAP: Record<string, ChipProps['color']> = {
   pending: 'warning',
   confirmed: 'info',
   completed: 'success',

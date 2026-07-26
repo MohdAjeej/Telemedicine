@@ -293,4 +293,16 @@ export const authService = {
     }
     return sanitizeUser(user);
   },
+
+  /** Admin "User Management" listing — every role in one paginated, filterable view. */
+  async listUsers(query: {
+    page?: number;
+    limit?: number;
+    role?: Role;
+    status?: 'pending' | 'active' | 'suspended';
+    search?: string;
+  }) {
+    const result = await authRepository.findManyUsers(query);
+    return { ...result, items: result.items.map(sanitizeUser) };
+  },
 };

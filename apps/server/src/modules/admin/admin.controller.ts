@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { Role } from '@telemedicine/constants';
 import { asyncHandler } from '../../helpers/asyncHandler';
 import { sendSuccess } from '../../helpers/ApiResponse';
 import { HTTP_STATUS } from '../../constants/httpStatus';
@@ -28,5 +29,31 @@ export const adminController = {
   remove: asyncHandler(async (req: Request, res: Response) => {
     await adminService.remove(req.params.id);
     sendSuccess(res, null, 'Admin deleted');
+  }),
+
+  listUsers: asyncHandler(async (req: Request, res: Response) => {
+    const result = await adminService.listUsers({
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      role: req.query.role as Role | undefined,
+      status: req.query.status as 'pending' | 'active' | 'suspended' | undefined,
+      search: req.query.search as string | undefined,
+    });
+    sendSuccess(res, result.items, 'Users fetched', HTTP_STATUS.OK, {
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    });
+  }),
+
+  updateUserStatus: asyncHandler(async (req: Request, res: Response) => {
+    const user = await adminService.updateUserStatus(req.params.userId, req.body.status);
+    sendSuccess(res, user, 'User status updated');
+  }),
+
+  updatePermissions: asyncHandler(async (req: Request, res: Response) => {
+    const admin = await adminService.updatePermissions(req.params.userId, req.body.permissions);
+    sendSuccess(res, admin, 'Permissions updated');
   }),
 };

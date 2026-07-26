@@ -27,6 +27,36 @@ export const authRepository = {
     return UserModel.findById(id).exec();
   },
 
+  async findManyUsers(query: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    status?: string;
+    search?: string;
+  }) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const filter: Record<string, unknown> = {};
+
+    if (query.role) filter.role = query.role;
+    if (query.status) filter.status = query.status;
+    if (query.search) {
+      const pattern = new RegExp(query.search.trim(), 'i');
+      filter.$or = [{ firstName: pattern }, { lastName: pattern }, { email: pattern }];
+    }
+
+    const [items, total] = await Promise.all([
+      UserModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+      UserModel.countDocuments(filter),
+    ]);
+
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  },
+
   deleteUser(id: string): Promise<HydratedUser | null> {
     return UserModel.findByIdAndDelete(id).exec();
   },
