@@ -30,5 +30,12 @@ router.patch(
   validateRequest,
   labReportController.updateResult,
 );
+router.delete(
+  '/:id',
+  authorize('doctor', 'health_officer', 'admin'),
+  labReportIdValidation,
+  validateRequest,
+  labReportController.remove,
+);
 
 export default router;

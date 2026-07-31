@@ -7,6 +7,7 @@ export const bookAppointmentValidation = [
   body('scheduledEnd').optional().isISO8601().withMessage('Invalid end time'),
   body('type').isIn(['in_person', 'video']).withMessage('Invalid appointment type'),
   body('reasonForVisit').trim().notEmpty().withMessage('Please describe the reason for your visit'),
+  body('patientId').isMongoId().withMessage('Invalid patient id'),
 ];
 
 export const cancelAppointmentValidation = [

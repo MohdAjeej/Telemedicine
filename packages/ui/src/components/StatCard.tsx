@@ -1,4 +1,4 @@
-import { Avatar, Card, CardContent, Stack, Typography } from '@mui/material';
+import { alpha, Avatar, Card, CardContent, Stack, Typography, useTheme } from '@mui/material';
 import type { ReactNode } from 'react';
 
 export interface StatCardProps {
@@ -10,6 +10,7 @@ export interface StatCardProps {
 }
 
 export function StatCard({ label, value, icon, color = 'primary', trend }: StatCardProps) {
+  const theme = useTheme();
   return (
     <Card variant="outlined">
       <CardContent>
@@ -31,7 +32,16 @@ export function StatCard({ label, value, icon, color = 'primary', trend }: StatC
             )}
           </Stack>
           {icon && (
-            <Avatar sx={{ bgcolor: `${color}.main`, width: 48, height: 48 }}>{icon}</Avatar>
+            <Avatar
+              sx={{
+                bgcolor: alpha(theme.palette[color].main, 0.12),
+                color: `${color}.main`,
+                width: 48,
+                height: 48,
+              }}
+            >
+              {icon}
+            </Avatar>
           )}
         </Stack>
       </CardContent>

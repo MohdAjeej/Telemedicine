@@ -3,6 +3,7 @@ import { VitalModel, type HydratedVital } from './vital.model';
 export const vitalRepository = {
   create(input: {
     patientId: string;
+    hospitalId: string;
     recordedBy: string;
     bloodPressureSystolic?: number;
     bloodPressureDiastolic?: number;
@@ -12,6 +13,8 @@ export const vitalRepository = {
     oxygenSaturation?: number;
     weight?: number;
     height?: number;
+    bloodSugar?: number;
+    symptoms?: string;
     notes?: string;
   }): Promise<HydratedVital> {
     return VitalModel.create(input);

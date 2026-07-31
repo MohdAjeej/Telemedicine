@@ -1,31 +1,26 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Link,
-  MenuItem,
-  Stack,
-  Typography,
-  Button,
-} from '@mui/material';
+import { Alert, Avatar, Box, Button, Link, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
+import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { registerSchema, type RegisterInput } from '@telemedicine/validation';
 import { FormTextField } from '@telemedicine/ui';
-import { Controller } from 'react-hook-form';
-import { TextField } from '@mui/material';
+import { useAppDispatch } from '../../../app/hooks';
+import { useListHospitalsQuery } from '../../hospital/hospitalApi';
 import { useRegisterMutation } from '../authApi';
-
-const ROLE_OPTIONS: Array<{ value: RegisterInput['role']; label: string }> = [
-  { value: 'patient', label: 'Patient' },
-  { value: 'doctor', label: 'Doctor' },
-  { value: 'health_officer', label: 'Health Officer' },
-];
+import { setCredentials } from '../authSlice';
 
 export default function RegisterPage() {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [registerUser, { isLoading }] = useRegisterMutation();
   const [formError, setFormError] = useState<string | null>(null);
+  const { data: hospitals, isLoading: isLoadingHospitals } = useListHospitalsQuery({
+    limit: 100,
+    status: 'active',
+  });
 
   const { control, handleSubmit } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -34,7 +29,8 @@ export default function RegisterPage() {
       lastName: '',
       email: '',
       phone: '',
-      role: 'patient',
+      age: undefined,
+      hospitalId: '',
       password: '',
       confirmPassword: '',
     },
@@ -43,8 +39,9 @@ export default function RegisterPage() {
   const onSubmit = async (values: RegisterInput) => {
     setFormError(null);
     try {
-      await registerUser(values).unwrap();
-      navigate('/login', { state: { justRegistered: true } });
+      const { user, accessToken } = await registerUser(values).unwrap();
+      dispatch(setCredentials({ user, accessToken }));
+      navigate('/app/patient');
     } catch (error) {
       const message =
         (error as { data?: { message?: string } })?.data?.message ?? 'Unable to register';
@@ -53,37 +50,55 @@ export default function RegisterPage() {
   };
 
   return (
-    <Stack component="form" spacing={2.5} onSubmit={handleSubmit(onSubmit)} noValidate>
-      <Typography variant="h5" fontWeight={700}>
-        Create your account
-      </Typography>
+    <Stack component="form" spacing={3} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <Stack spacing={1.5} alignItems="flex-start">
+        <Avatar
+          sx={{
+            width: 48,
+            height: 48,
+            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.14),
+            color: 'secondary.main',
+          }}
+        >
+          <PersonAddAltRoundedIcon />
+        </Avatar>
+        <Box>
+          <Typography variant="h5" fontWeight={700}>
+            Create your patient account
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Book appointments and manage your care in one place.
+          </Typography>
+        </Box>
+      </Stack>
       {formError && <Alert severity="error">{formError}</Alert>}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <FormTextField name="firstName" control={control} label="First name" />
+        <FormTextField name="firstName" control={control} label="Name" />
         <FormTextField name="lastName" control={control} label="Last name" />
       </Stack>
-      <FormTextField name="email" control={control} label="Email" type="email" />
-      <FormTextField name="phone" control={control} label="Phone (optional)" />
+      <FormTextField name="age" control={control} label="Age" type="number" />
       <Controller
-        name="role"
+        name="hospitalId"
         control={control}
         render={({ field, fieldState }) => (
           <TextField
             {...field}
             select
-            label="I am a"
+            label="Hospital"
             fullWidth
+            disabled={isLoadingHospitals}
             error={!!fieldState.error}
             helperText={fieldState.error?.message}
           >
-            {ROLE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
+            {(hospitals?.items ?? []).map((hospital) => (
+              <MenuItem key={hospital._id} value={hospital._id}>
+                {hospital.name}
               </MenuItem>
             ))}
           </TextField>
         )}
       />
+      <FormTextField name="email" control={control} label="Email" type="email" />
       <FormTextField name="password" control={control} label="Password" type="password" />
       <FormTextField
         name="confirmPassword"
@@ -91,12 +106,19 @@ export default function RegisterPage() {
         label="Confirm password"
         type="password"
       />
-      <Button type="submit" variant="contained" size="large" disabled={isLoading}>
+      <Button
+        type="submit"
+        variant="contained"
+        color="secondary"
+        size="large"
+        disabled={isLoading}
+        endIcon={<ArrowForwardRoundedIcon />}
+      >
         Create account
       </Button>
       <Typography variant="body2" color="text.secondary" textAlign="center">
         Already have an account?{' '}
-        <Link component={RouterLink} to="/login">
+        <Link component={RouterLink} to="/login" fontWeight={600}>
           Sign in
         </Link>
       </Typography>

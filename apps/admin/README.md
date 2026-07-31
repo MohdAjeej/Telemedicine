@@ -1,25 +1,70 @@
-# apps/admin — intentionally empty
+# apps/admin — Admin Console
 
-This folder is a reserved placeholder, not a bug or an unfinished build.
+Standalone React app for hospital administrators, deployed and run
+independently from `apps/client`. It shares the same server API
+(`apps/server`, `/api/v1`) and the same `packages/*` workspaces (types, UI
+components, validation schemas, hooks, constants) but is its own Vite build,
+its own dev server, and its own Docker service.
 
-**The Admin Panel is not a separate app.** All four roles (Admin, Doctor,
-Health Officer, Patient) — including the full Admin module list (Dashboard,
-Hospital/Doctor/Health Officer/Patient/Appointment Management, Analytics,
-Audit Logs, System Settings, Notification Center, User/Role Management) —
-live inside **`apps/client`**, the single React SPA, as role-gated routes
-under `/app/admin/*`. See `docs/architecture.md` § "Why no separate
-`apps/admin`" for the reasoning: every role shares one JWT/session model,
-not separate security perimeters, so splitting Admin into its own deployed
-app would just duplicate auth wiring, theming, and the API client for no
-real isolation benefit.
+## Why this exists
 
-**To see the Admin Panel**, run the app (see the root `README.md` — either
-`npm run dev` for local development, or `docker compose up -d --build`) and
-log in with an admin account at the client's URL. The sidebar
-(`apps/client/src/layouts/AdminLayout.tsx`) and its routes
-(`apps/client/src/routes/adminRoutes.tsx`) are where that panel actually
-lives in the source tree.
+Previously the Admin panel lived inside `apps/client` under `/app/admin`
+sharing that app's session. It has since been extracted into this standalone
+app so it can be deployed, scaled, and iterated on independently of the
+patient/doctor/health-officer app. See `docs/architecture.md` for the
+reasoning and tradeoffs.
 
-If a genuinely separate, independently-deployed admin surface is ever
-needed, it can be extracted from `apps/client/src/{pages,features}/admin`
-at that time — this folder is kept reserved for exactly that.
+## Running locally
+
+```bash
+npm install            # from the repo root, once
+npm run dev             # runs every app via turbo, including this one
+# or, just this app:
+cd apps/admin && npm run dev
+```
+
+Runs at `http://localhost:5174` and proxies `/api` and `/socket.io` to the
+server on `http://localhost:5050` (see `vite.config.ts`).
+
+With Docker: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up admin server mongo`.
+
+## Session model
+
+This app has its **own, independent login and session** — logging into
+`apps/client` does not log you into this app, and vice versa. Both hit the
+same `POST /api/v1/auth/login`, but each app keeps its access token in its
+own Redux store (never localStorage) and gets its own refresh cookie scoped
+to its own origin. Signing in here requires an account with `role: 'admin'`;
+any other role is rejected with an inline error.
+
+## Duplicated code
+
+To avoid a runtime dependency between the two deployed apps, `apps/admin`
+duplicates (and trims to only what it needs) a handful of RTK Query slices
+that are also used by other roles in `apps/client`:
+
+- `src/features/doctor/doctorApi.ts`
+- `src/features/healthOfficer/healthOfficerApi.ts`
+- `src/features/patient/patientApi.ts`
+- `src/features/appointment/appointmentApi.ts`
+- `src/features/notification/notificationApi.ts`
+
+If the underlying server endpoints for any of these change shape, update
+both apps' copies. Everything else under `src/features/` here (admin, hospital,
+settings, auditLog, report) is admin-exclusive and lives only in this app.
+
+## Pages
+
+Dashboard, Hospitals, Doctors, Health Officers, Patients, Appointments,
+Analytics, Audit Logs, User Management, Notification Center, Settings.
+
+## Deployment
+
+One Dockerfile (`apps/admin/Dockerfile`), same two-stage pattern as
+`apps/client`'s: builds the Vite app, then serves it from its own
+`nginx:alpine` container (`nginx/conf.d/admin.conf`) which also reverse-proxies
+`/api` and `/socket.io` to the `server` container. In production, this app's
+deployed origin must be added to the server's `CLIENT_URL` env var
+(comma-separated with client's origin) for CORS + cookies to work — local
+dev needs no server changes since CORS auto-allows any `localhost:<port>`
+origin in non-production.

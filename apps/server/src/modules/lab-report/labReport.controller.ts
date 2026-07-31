@@ -3,6 +3,7 @@ import { asyncHandler } from '../../helpers/asyncHandler';
 import { sendSuccess } from '../../helpers/ApiResponse';
 import { HTTP_STATUS } from '../../constants/httpStatus';
 import { ApiError } from '../../helpers/ApiError';
+import { assertOwnHospital } from '../../helpers/hospitalScope';
 import { patientRepository } from '../patient/patient.repository';
 import { labReportService } from './labReport.service';
 
@@ -17,6 +18,9 @@ export const labReportController = {
     if (req.user!.role === 'patient') {
       const patient = await patientRepository.findByUserId(req.user!.id);
       patientId = patient?._id.toString();
+    } else if (req.user!.role === 'admin' && patientId) {
+      const patient = await patientRepository.findById(patientId);
+      assertOwnHospital(req.user!, patient?.hospitalId);
     }
     if (!patientId) throw ApiError.badRequest('patientId query parameter is required');
     const reports = await labReportService.listForPatient(patientId);
@@ -25,11 +29,19 @@ export const labReportController = {
 
   getById: asyncHandler(async (req: Request, res: Response) => {
     const report = await labReportService.getById(req.params.id);
+    assertOwnHospital(req.user!, report.hospitalId);
     sendSuccess(res, report);
   }),
 
   updateResult: asyncHandler(async (req: Request, res: Response) => {
     const report = await labReportService.updateResult(req.params.id, req.body);
     sendSuccess(res, report, 'Lab report updated');
+  }),
+
+  remove: asyncHandler(async (req: Request, res: Response) => {
+    const existing = await labReportService.getById(req.params.id);
+    assertOwnHospital(req.user!, existing.hospitalId);
+    await labReportService.remove(req.params.id);
+    sendSuccess(res, null, 'Lab report deleted');
   }),
 };

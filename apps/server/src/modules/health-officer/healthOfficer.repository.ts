@@ -2,16 +2,17 @@ import { HealthOfficerModel, type HydratedHealthOfficer } from './healthOfficer.
 import type { ListHealthOfficersQuery, UpdateHealthOfficerProfileInput } from './healthOfficer.types';
 
 export const healthOfficerRepository = {
-  createMinimal(userId: string): Promise<HydratedHealthOfficer> {
-    return HealthOfficerModel.create({ userId });
+  /** Creates the HealthOfficer profile document itself — hospitalId is required and set once, at creation. */
+  create(input: { userId: string; hospitalId: string; employeeId?: string }): Promise<HydratedHealthOfficer> {
+    return HealthOfficerModel.create(input);
   },
 
   findByUserId(userId: string): Promise<HydratedHealthOfficer | null> {
-    return HealthOfficerModel.findOne({ userId }).populate('userId hospitalId').exec();
+    return HealthOfficerModel.findOne({ userId }).populate('userId').exec();
   },
 
   findById(id: string): Promise<HydratedHealthOfficer | null> {
-    return HealthOfficerModel.findById(id).populate('userId hospitalId').exec();
+    return HealthOfficerModel.findById(id).populate('userId').exec();
   },
 
   async findMany(query: ListHealthOfficersQuery) {
@@ -22,7 +23,7 @@ export const healthOfficerRepository = {
 
     const [items, total] = await Promise.all([
       HealthOfficerModel.find(filter)
-        .populate('userId hospitalId')
+        .populate('userId')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -37,11 +38,7 @@ export const healthOfficerRepository = {
     userId: string,
     input: UpdateHealthOfficerProfileInput,
   ): Promise<HydratedHealthOfficer | null> {
-    return HealthOfficerModel.findOneAndUpdate(
-      { userId },
-      { $set: input },
-      { new: true, upsert: true },
-    ).exec();
+    return HealthOfficerModel.findOneAndUpdate({ userId }, { $set: input }, { new: true }).exec();
   },
 
   updateById(id: string, input: UpdateHealthOfficerProfileInput): Promise<HydratedHealthOfficer | null> {

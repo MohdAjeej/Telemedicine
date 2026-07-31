@@ -1,20 +1,24 @@
+import { Types } from 'mongoose';
 import { AppointmentModel } from '../appointment/appointment.model';
 import { PatientModel } from '../patient/patient.model';
 import { DoctorModel } from '../doctor/doctor.model';
+import { HealthOfficerModel } from '../health-officer/healthOfficer.model';
+import { ConsultationModel } from '../consultation/consultation.model';
 
 export const reportService = {
-  async appointmentsByStatus() {
+  async appointmentsByStatus(hospitalId: string) {
     const results = await AppointmentModel.aggregate([
+      { $match: { hospitalId: new Types.ObjectId(hospitalId) } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
       { $project: { _id: 0, status: '$_id', count: 1 } },
     ]);
     return results;
   },
 
-  async appointmentsOverTime(days = 30) {
+  async appointmentsOverTime(hospitalId: string, days = 30) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const results = await AppointmentModel.aggregate([
-      { $match: { scheduledStart: { $gte: since } } },
+      { $match: { hospitalId: new Types.ObjectId(hospitalId), scheduledStart: { $gte: since } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$scheduledStart' } },
@@ -27,12 +31,9 @@ export const reportService = {
     return results;
   },
 
-  async doctorUtilization(hospitalId?: string) {
-    const match: Record<string, unknown> = {};
-    if (hospitalId) match.hospitalId = hospitalId;
-
+  async doctorUtilization(hospitalId: string) {
     const results = await AppointmentModel.aggregate([
-      { $match: match },
+      { $match: { hospitalId: new Types.ObjectId(hospitalId) } },
       { $group: { _id: '$doctorId', appointmentCount: { $sum: 1 } } },
       {
         $lookup: {
@@ -66,22 +67,36 @@ export const reportService = {
     return results;
   },
 
-  async patientDemographics() {
+  async patientDemographics(hospitalId: string) {
     const results = await PatientModel.aggregate([
+      { $match: { hospitalId: new Types.ObjectId(hospitalId) } },
       { $group: { _id: '$gender', count: { $sum: 1 } } },
       { $project: { _id: 0, gender: { $ifNull: ['$_id', 'unspecified'] }, count: 1 } },
     ]);
     return results;
   },
 
-  async summary() {
-    const [totalDoctors, totalPatients, totalAppointments, statusBreakdown] = await Promise.all([
-      DoctorModel.countDocuments(),
-      PatientModel.countDocuments(),
-      AppointmentModel.countDocuments(),
-      reportService.appointmentsByStatus(),
-    ]);
+  async summary(hospitalId: string) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-    return { totalDoctors, totalPatients, totalAppointments, statusBreakdown };
+    const [totalDoctors, totalHealthOfficers, totalPatients, totalAppointments, todaysConsultations, statusBreakdown] =
+      await Promise.all([
+        DoctorModel.countDocuments({ hospitalId }),
+        HealthOfficerModel.countDocuments({ hospitalId }),
+        PatientModel.countDocuments({ hospitalId }),
+        AppointmentModel.countDocuments({ hospitalId }),
+        ConsultationModel.countDocuments({ hospitalId, createdAt: { $gte: startOfToday } }),
+        reportService.appointmentsByStatus(hospitalId),
+      ]);
+
+    return {
+      totalDoctors,
+      totalHealthOfficers,
+      totalPatients,
+      totalAppointments,
+      todaysConsultations,
+      statusBreakdown,
+    };
   },
 };

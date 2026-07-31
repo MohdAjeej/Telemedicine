@@ -1,0 +1,18 @@
+export const COMMON_TESTS = [
+  'Complete Blood Count (CBC)',
+  'Basic Metabolic Panel',
+  'Comprehensive Metabolic Panel',
+  'Lipid Panel',
+  'Liver Function Tests',
+  'Thyroid Function Tests',
+  'Hemoglobin A1C',
+  'Urinalysis',
+  'Blood Glucose',
+  'COVID-19 Test',
+  'X-Ray',
+  'CT Scan',
+  'MRI',
+  'Ultrasound',
+  'ECG/EKG',
+  'Other',
+];

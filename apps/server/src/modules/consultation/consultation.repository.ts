@@ -5,6 +5,7 @@ export const consultationRepository = {
     appointmentId: string;
     doctorId: string;
     patientId: string;
+    hospitalId: string;
     chiefComplaint?: string;
     videoRoomId?: string;
   }): Promise<HydratedConsultation> {
@@ -19,12 +20,19 @@ export const consultationRepository = {
     return ConsultationModel.findOne({ appointmentId }).exec();
   },
 
-  async findMany(filter: { doctorId?: string; patientId?: string; page?: number; limit?: number }) {
+  async findMany(filter: {
+    doctorId?: string;
+    patientId?: string;
+    hospitalId?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = filter.page ?? 1;
     const limit = filter.limit ?? 10;
     const query: Record<string, unknown> = {};
     if (filter.doctorId) query.doctorId = filter.doctorId;
     if (filter.patientId) query.patientId = filter.patientId;
+    if (filter.hospitalId) query.hospitalId = filter.hospitalId;
 
     const [items, total] = await Promise.all([
       ConsultationModel.find(query)

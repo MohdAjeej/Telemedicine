@@ -3,6 +3,7 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 const auditLogSchema = new Schema(
   {
     actorId: { type: Schema.Types.ObjectId, ref: 'User' },
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', index: true },
     action: { type: String, required: true, index: true },
     entityType: { type: String, required: true, index: true },
     entityId: { type: Schema.Types.ObjectId },

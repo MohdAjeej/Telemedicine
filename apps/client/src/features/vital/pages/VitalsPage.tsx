@@ -16,7 +16,7 @@ import { useListVitalsQuery } from '../vitalApi';
 
 export default function VitalsPage() {
   const theme = useTheme();
-  const { data: vitals = [], isFetching } = useListVitalsQuery();
+  const { data: vitals = [], isFetching } = useListVitalsQuery({});
 
   const chartData = [...vitals]
     .reverse()
@@ -32,12 +32,16 @@ export default function VitalsPage() {
       key: 'bp',
       header: 'Blood pressure',
       render: (row) =>
-        row.bloodPressure ? `${row.bloodPressure.systolic}/${row.bloodPressure.diastolic}` : '—',
+        row.bloodPressureSystolic && row.bloodPressureDiastolic
+          ? `${row.bloodPressureSystolic}/${row.bloodPressureDiastolic}`
+          : '—',
     },
     { key: 'hr', header: 'Heart rate', render: (row) => row.heartRate ?? '—' },
     { key: 'temp', header: 'Temperature', render: (row) => row.temperature ?? '—' },
     { key: 'spo2', header: 'SpO2', render: (row) => row.oxygenSaturation ?? '—' },
     { key: 'bmi', header: 'BMI', render: (row) => row.bmi ?? '—' },
+    { key: 'bloodSugar', header: 'Blood sugar', render: (row) => row.bloodSugar ?? '—' },
+    { key: 'symptoms', header: 'Symptoms', render: (row) => row.symptoms ?? '—' },
   ];
 
   return (

@@ -1,15 +1,16 @@
+/** Admin-only. hospitalId is deliberately absent — always the creating admin's own hospital (see doctor.controller.ts). */
 export interface CreateDoctorInput {
   email: string;
+  password: string;
   firstName: string;
   lastName: string;
   phone?: string;
-  hospitalId?: string;
-  specialization?: string[];
+  specialization: string[];
   licenseNumber?: string;
 }
 
+/** hospitalId is intentionally not editable here — fixed at creation time (see CreateDoctorInput). */
 export interface UpdateDoctorProfileInput {
-  hospitalId?: string;
   specialization?: string[];
   licenseNumber?: string;
   qualifications?: string[];

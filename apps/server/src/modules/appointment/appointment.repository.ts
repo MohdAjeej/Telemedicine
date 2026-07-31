@@ -8,6 +8,7 @@ export const appointmentRepository = {
     patientId: string;
     doctorId: string;
     hospitalId: string;
+    healthOfficerId?: string;
     scheduledStart: Date;
     scheduledEnd: Date;
     type: 'in_person' | 'video';
@@ -21,6 +22,7 @@ export const appointmentRepository = {
     return AppointmentModel.findById(id)
       .populate({ path: 'patientId', populate: { path: 'userId' } })
       .populate({ path: 'doctorId', populate: { path: 'userId' } })
+      .populate({ path: 'healthOfficerId', populate: { path: 'userId' } })
       .populate('hospitalId')
       .exec();
   },
@@ -58,6 +60,7 @@ export const appointmentRepository = {
       AppointmentModel.find(filter)
         .populate({ path: 'patientId', populate: { path: 'userId' } })
         .populate({ path: 'doctorId', populate: { path: 'userId' } })
+        .populate({ path: 'healthOfficerId', populate: { path: 'userId' } })
         .populate('hospitalId')
         .sort({ scheduledStart: -1 })
         .skip((page - 1) * limit)
@@ -77,6 +80,7 @@ export const appointmentRepository = {
     return AppointmentModel.findByIdAndUpdate(id, { $set: { status, ...extra } }, { new: true })
       .populate({ path: 'patientId', populate: { path: 'userId' } })
       .populate({ path: 'doctorId', populate: { path: 'userId' } })
+      .populate({ path: 'healthOfficerId', populate: { path: 'userId' } })
       .exec();
   },
 };

@@ -6,11 +6,10 @@ export const authRepository = {
     email: string;
     passwordHash: string;
     role: string;
+    hospitalId: string;
     firstName: string;
     lastName: string;
     phone?: string;
-    emailVerificationTokenHash: string;
-    emailVerificationExpires: Date;
   }): Promise<HydratedUser> {
     return UserModel.create(input);
   },
@@ -27,17 +26,45 @@ export const authRepository = {
     return UserModel.findById(id).exec();
   },
 
+  findUserByIdWithPassword(id: string): Promise<HydratedUser | null> {
+    return UserModel.findById(id).select('+passwordHash').exec();
+  },
+
+  updateUser(
+    id: string,
+    input: { firstName?: string; lastName?: string; phone?: string },
+  ): Promise<HydratedUser | null> {
+    return UserModel.findByIdAndUpdate(id, { $set: input }, { new: true }).exec();
+  },
+
+  async updatePassword(id: string, passwordHash: string): Promise<void> {
+    await UserModel.updateOne({ _id: id }, { $set: { passwordHash } });
+  },
+
+  /**
+   * Raw `updateOne` rather than `doc.save()` — `.save()` re-validates the
+   * entire document, including required fields untouched by this update
+   * (like `hospitalId`), which fails on any account created before that
+   * field existed. A last-login timestamp bump should never be blocked by
+   * unrelated schema drift.
+   */
+  async touchLastLogin(id: string): Promise<void> {
+    await UserModel.updateOne({ _id: id }, { $set: { lastLoginAt: new Date() } });
+  },
+
   async findManyUsers(query: {
     page?: number;
     limit?: number;
     role?: string;
     status?: string;
     search?: string;
+    hospitalId?: string;
   }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const filter: Record<string, unknown> = {};
 
+    if (query.hospitalId) filter.hospitalId = query.hospitalId;
     if (query.role) filter.role = query.role;
     if (query.status) filter.status = query.status;
     if (query.search) {
@@ -61,26 +88,8 @@ export const authRepository = {
     return UserModel.findByIdAndDelete(id).exec();
   },
 
-  setUserStatus(id: string, status: 'pending' | 'active' | 'suspended'): Promise<HydratedUser | null> {
+  setUserStatus(id: string, status: 'active' | 'suspended'): Promise<HydratedUser | null> {
     return UserModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
-  },
-
-  findUserByVerificationTokenHash(hash: string): Promise<HydratedUser | null> {
-    return UserModel.findOne({
-      emailVerificationTokenHash: hash,
-      emailVerificationExpires: { $gt: new Date() },
-    })
-      .select('+emailVerificationTokenHash +emailVerificationExpires')
-      .exec();
-  },
-
-  findUserByResetTokenHash(hash: string): Promise<HydratedUser | null> {
-    return UserModel.findOne({
-      resetPasswordTokenHash: hash,
-      resetPasswordExpires: { $gt: new Date() },
-    })
-      .select('+resetPasswordTokenHash +resetPasswordExpires')
-      .exec();
   },
 
   createSession(input: {

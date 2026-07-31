@@ -28,13 +28,15 @@ function clearRefreshCookie(res: Response): void {
 
 export const authController = {
   register: asyncHandler(async (req: Request, res: Response) => {
-    const user = await authService.register(req.body, requestMeta(req));
-    sendSuccess(
-      res,
-      { user },
-      'Registration successful. Please check your email to verify your account.',
-      HTTP_STATUS.CREATED,
-    );
+    const { user, tokens } = await authService.register(req.body, requestMeta(req));
+    setRefreshCookie(res, tokens.refreshToken);
+    sendSuccess(res, { user, accessToken: tokens.accessToken }, 'Registration successful', HTTP_STATUS.CREATED);
+  }),
+
+  registerAdmin: asyncHandler(async (req: Request, res: Response) => {
+    const { user, tokens } = await authService.registerAdmin(req.body, requestMeta(req));
+    setRefreshCookie(res, tokens.refreshToken);
+    sendSuccess(res, { user, accessToken: tokens.accessToken }, 'Hospital registered', HTTP_STATUS.CREATED);
   }),
 
   login: asyncHandler(async (req: Request, res: Response) => {
@@ -49,9 +51,9 @@ export const authController = {
       throw ApiError.unauthorized('Refresh token missing');
     }
 
-    const tokens = await authService.refresh(refreshToken, requestMeta(req));
+    const { user, tokens } = await authService.refresh(refreshToken, requestMeta(req));
     setRefreshCookie(res, tokens.refreshToken);
-    sendSuccess(res, { accessToken: tokens.accessToken }, 'Token refreshed');
+    sendSuccess(res, { user, accessToken: tokens.accessToken }, 'Token refreshed');
   }),
 
   logout: asyncHandler(async (req: Request, res: Response) => {
@@ -61,23 +63,18 @@ export const authController = {
     sendSuccess(res, null, 'Logged out');
   }),
 
-  forgotPassword: asyncHandler(async (req: Request, res: Response) => {
-    await authService.forgotPassword(req.body.email);
-    sendSuccess(res, null, 'If that email is registered, a reset link has been sent.');
-  }),
-
-  resetPassword: asyncHandler(async (req: Request, res: Response) => {
-    await authService.resetPassword(req.params.token, req.body.password);
-    sendSuccess(res, null, 'Password has been reset. Please log in again.');
-  }),
-
-  verifyEmail: asyncHandler(async (req: Request, res: Response) => {
-    await authService.verifyEmail(req.params.token);
-    sendSuccess(res, null, 'Email verified successfully');
-  }),
-
   getMe: asyncHandler(async (req: Request, res: Response) => {
     const user = await authService.getMe(req.user!.id);
     sendSuccess(res, user);
+  }),
+
+  updateMe: asyncHandler(async (req: Request, res: Response) => {
+    const user = await authService.updateMe(req.user!.id, req.body);
+    sendSuccess(res, user, 'Profile updated');
+  }),
+
+  changePassword: asyncHandler(async (req: Request, res: Response) => {
+    await authService.changePassword(req.user!.id, req.body.currentPassword, req.body.newPassword);
+    sendSuccess(res, null, 'Password updated');
   }),
 };

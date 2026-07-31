@@ -10,7 +10,7 @@ export interface DoctorAvailabilitySlot {
 export interface DoctorDocument {
   _id: Schema.Types.ObjectId;
   userId: Schema.Types.ObjectId;
-  hospitalId?: Schema.Types.ObjectId;
+  hospitalId: Schema.Types.ObjectId;
   specialization: string[];
   licenseNumber?: string;
   qualifications: string[];
@@ -20,6 +20,10 @@ export interface DoctorDocument {
   rating: number;
   bio?: string;
   department?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  bloodGroup?: string;
+  address?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +43,9 @@ const availabilitySlotSchema = new Schema<DoctorAvailabilitySlot>(
 const doctorSchema = new Schema<DoctorDocument>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
-    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', index: true },
+    // Auto-assigned to the creating Admin's own hospital — never chosen by
+    // the caller (see doctor.service.ts create()).
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     specialization: { type: [String], default: [] },
     licenseNumber: { type: String, unique: true, sparse: true },
     qualifications: { type: [String], default: [] },
@@ -49,6 +55,10 @@ const doctorSchema = new Schema<DoctorDocument>(
     rating: { type: Number, default: 0, min: 0, max: 5 },
     bio: { type: String },
     department: { type: String },
+    age: { type: Number, min: 0, max: 150 },
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    bloodGroup: { type: String },
+    address: { type: String },
   },
   { timestamps: true },
 );

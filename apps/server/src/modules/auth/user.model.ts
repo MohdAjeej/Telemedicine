@@ -6,16 +6,12 @@ export interface UserDocument {
   email: string;
   passwordHash: string;
   role: Role;
+  hospitalId: Schema.Types.ObjectId;
   firstName: string;
   lastName: string;
   phone?: string;
   avatarUrl?: string;
-  isEmailVerified: boolean;
-  status: 'pending' | 'active' | 'suspended';
-  emailVerificationTokenHash?: string;
-  emailVerificationExpires?: Date;
-  resetPasswordTokenHash?: string;
-  resetPasswordExpires?: Date;
+  status: 'active' | 'suspended';
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -33,16 +29,16 @@ const userSchema = new Schema<UserDocument>(
       required: true,
       index: true,
     },
+    // Denormalized from the role-specific profile (Admin/Doctor/HealthOfficer/Patient)
+    // so the User Management screen can filter by hospital in a single query.
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
     phone: { type: String, trim: true },
     avatarUrl: { type: String },
-    isEmailVerified: { type: Boolean, default: false },
-    status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'pending' },
-    emailVerificationTokenHash: { type: String, select: false },
-    emailVerificationExpires: { type: Date, select: false },
-    resetPasswordTokenHash: { type: String, select: false },
-    resetPasswordExpires: { type: Date, select: false },
+    // No email verification / password reset in this system by design — accounts
+    // are active immediately on creation (self-registration or admin-created).
+    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     lastLoginAt: { type: Date },
   },
   { timestamps: true },

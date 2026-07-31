@@ -2,36 +2,18 @@ import type { Role } from '@telemedicine/constants';
 import { ApiError } from '../../helpers/ApiError';
 import { authService } from '../auth/auth.service';
 import { adminRepository } from './admin.repository';
-import type { CreateAdminInput } from './admin.types';
 
 export const adminService = {
-  async create(input: CreateAdminInput) {
-    const user = await authService.provisionAccount({
-      email: input.email,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      phone: input.phone,
-      role: 'admin',
-    });
-
-    try {
-      return await adminRepository.updateByUserId(user.id, {
-        permissions: input.permissions,
-        department: input.department,
-      });
-    } catch (error) {
-      await authService.deleteAccount(user.id);
-      throw error;
-    }
+  async list(hospitalId: string) {
+    return adminRepository.findMany(hospitalId);
   },
 
-  async list() {
-    return adminRepository.findMany();
-  },
-
-  async getById(id: string) {
+  /** Each hospital has exactly one admin — never let a caller fetch another hospital's. */
+  async getById(id: string, hospitalId: string) {
     const admin = await adminRepository.findById(id);
-    if (!admin) throw ApiError.notFound('Admin not found');
+    if (!admin || admin.hospitalId.toString() !== hospitalId) {
+      throw ApiError.notFound('Admin not found');
+    }
     return admin;
   },
 
@@ -41,24 +23,28 @@ export const adminService = {
     return admin;
   },
 
-  async remove(id: string) {
-    const admin = await adminRepository.deleteById(id);
-    if (!admin) throw ApiError.notFound('Admin not found');
+  async remove(id: string, hospitalId: string) {
+    const admin = await adminRepository.findById(id);
+    if (!admin || admin.hospitalId.toString() !== hospitalId) {
+      throw ApiError.notFound('Admin not found');
+    }
+    await adminRepository.deleteById(id);
     await authService.deleteAccount(admin.userId.toString());
   },
 
-  /** Platform-wide user directory — every role, used by the "User Management" screen. */
+  /** Hospital-scoped user directory — every role within the caller's own hospital, used by the "User Management" screen. */
   async listUsers(query: {
     page?: number;
     limit?: number;
     role?: Role;
-    status?: 'pending' | 'active' | 'suspended';
+    status?: 'active' | 'suspended';
     search?: string;
+    hospitalId: string;
   }) {
     return authService.listUsers(query);
   },
 
-  async updateUserStatus(userId: string, status: 'pending' | 'active' | 'suspended') {
+  async updateUserStatus(userId: string, status: 'active' | 'suspended') {
     return authService.setAccountStatus(userId, status);
   },
 

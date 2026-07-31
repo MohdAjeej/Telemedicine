@@ -4,6 +4,7 @@ export interface ListAuditLogsQuery {
   page?: number;
   limit?: number;
   actorId?: string;
+  hospitalId?: string;
   action?: string;
   entityType?: string;
   from?: string;
@@ -16,6 +17,7 @@ export const auditLogRepository = {
     const limit = query.limit ?? 20;
     const filter: Record<string, unknown> = {};
 
+    if (query.hospitalId) filter.hospitalId = query.hospitalId;
     if (query.actorId) filter.actorId = query.actorId;
     if (query.action) filter.action = query.action;
     if (query.entityType) filter.entityType = query.entityType;

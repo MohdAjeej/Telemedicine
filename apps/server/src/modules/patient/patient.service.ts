@@ -4,19 +4,23 @@ import { patientRepository } from './patient.repository';
 import type { CreatePatientInput, ListPatientsQuery, UpdatePatientProfileInput } from './patient.types';
 
 export const patientService = {
-  /** Used by Health Officer "Register Patient" front-desk intake as well as Admin. */
-  async create(input: CreatePatientInput) {
+  /** Health Officer "Register Patient" front-desk intake — hospital is the officer's own hospital, never chosen by them. */
+  async create(input: CreatePatientInput, hospitalId: string) {
     const user = await authService.provisionAccount({
       email: input.email,
+      password: input.password,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
       role: 'patient',
+      hospitalId,
     });
 
     try {
-      return await patientRepository.updateByUserId(user.id, {
-        dateOfBirth: input.dateOfBirth,
+      return await patientRepository.create({
+        userId: user.id,
+        hospitalId,
+        age: input.age,
         gender: input.gender,
       });
     } catch (error) {

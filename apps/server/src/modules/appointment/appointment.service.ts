@@ -48,18 +48,33 @@ async function resolveScopedFilter(actor: RequestActor, query: ListAppointmentsQ
   }
 
   if (actor.role === 'health_officer') {
-    const officer = await healthOfficerRepository.findByUserId(actor.userId);
-    if (!officer?.hospitalId) throw ApiError.notFound('Health officer is not assigned to a hospital');
-    return { ...query, hospitalId: officer.hospitalId.toString() };
+    if (!actor.hospitalId) throw ApiError.notFound('Health officer is not assigned to a hospital');
+    return { ...query, hospitalId: actor.hospitalId };
+  }
+
+  if (actor.role === 'admin') {
+    // An admin only ever manages their own hospital — force the scope from the
+    // signed JWT claim rather than trusting a client-supplied hospitalId, which
+    // would otherwise leak every hospital's appointments to any admin.
+    if (!actor.hospitalId) throw ApiError.notFound('Admin profile not found');
+    return { ...query, hospitalId: actor.hospitalId };
   }
 
   return query;
 }
 
 export const appointmentService = {
-  async book(actorUserId: string, input: BookAppointmentInput) {
-    const patient = await patientRepository.findByUserId(actorUserId);
-    if (!patient) throw ApiError.notFound('Complete your patient profile before booking');
+  /** Bookable only by a Health Officer, always on a patient's behalf (input.patientId required). */
+  async book(actorUserId: string, actorRole: string, input: BookAppointmentInput) {
+    if (actorRole !== 'health_officer') {
+      throw ApiError.forbidden('Only a health officer can book appointments');
+    }
+
+    const officer = await healthOfficerRepository.findByUserId(actorUserId);
+    if (!officer) throw ApiError.notFound('Health officer profile not found');
+
+    const patient = await patientRepository.findById(input.patientId);
+    if (!patient) throw ApiError.badRequest('A patient must be specified');
 
     const doctor = await doctorRepository.findById(input.doctorId);
     if (!doctor) throw ApiError.notFound('Doctor not found');
@@ -85,6 +100,7 @@ export const appointmentService = {
       patientId: patient._id.toString(),
       doctorId: input.doctorId,
       hospitalId: input.hospitalId,
+      healthOfficerId: officer._id.toString(),
       scheduledStart,
       scheduledEnd,
       type: input.type,
@@ -106,6 +122,7 @@ export const appointmentService = {
 
     await recordAuditLog({
       actorId: actorUserId,
+      hospitalId: appointment.hospitalId.toString(),
       action: 'appointment.booked',
       entityType: 'Appointment',
       entityId: appointment._id.toString(),
@@ -151,6 +168,7 @@ export const appointmentService = {
     }
     await recordAuditLog({
       actorId: actorUserId,
+      hospitalId: updated?.hospitalId?.toString(),
       action: 'appointment.confirmed',
       entityType: 'Appointment',
       entityId: id,
@@ -170,6 +188,7 @@ export const appointmentService = {
     if (updated) emitAppointmentUpdated(updated);
     await recordAuditLog({
       actorId: actorUserId,
+      hospitalId: updated?.hospitalId?.toString(),
       action: 'appointment.completed',
       entityType: 'Appointment',
       entityId: id,
@@ -189,6 +208,7 @@ export const appointmentService = {
     if (updated) emitAppointmentUpdated(updated);
     await recordAuditLog({
       actorId: actorUserId,
+      hospitalId: updated?.hospitalId?.toString(),
       action: 'appointment.no_show',
       entityType: 'Appointment',
       entityId: id,
@@ -222,6 +242,7 @@ export const appointmentService = {
     }
     await recordAuditLog({
       actorId: actorUserId,
+      hospitalId: updated?.hospitalId?.toString(),
       action: 'appointment.cancelled',
       entityType: 'Appointment',
       entityId: id,

@@ -32,6 +32,22 @@ runtime surprise.
 |---|---|---|---|
 | `VITE_API_BASE_URL` | no | `/api/v1` | Base URL the RTK Query client sends requests to |
 | `VITE_SOCKET_URL` | no | `/` | Socket.io server URL |
+| `VITE_TURN_USERNAME` | no | — | TURN server username for authentication (Metered.ca credentials) |
+| `VITE_TURN_PASSWORD` | no | — | TURN server password/credential for authentication (Metered.ca credentials) |
+
+**WebRTC TURN Server Configuration:**
+- **Multiple TURN servers are pre-configured** in the application for maximum connectivity
+- Server URLs are hardcoded to use Metered.ca's infrastructure:
+  - `stun:stun.relay.metered.ca:80` - STUN for NAT traversal
+  - `turn:global.relay.metered.ca:80` - TURN UDP on port 80
+  - `turn:global.relay.metered.ca:80?transport=tcp` - TURN TCP on port 80 (restrictive networks)
+  - `turn:global.relay.metered.ca:443` - TURN on port 443 (bypass firewalls)
+  - `turns:global.relay.metered.ca:443?transport=tcp` - TURN TLS on port 443 (maximum security)
+- Google's public STUN servers are also included as fallbacks
+- TURN credentials are **optional** but **highly recommended** for production
+- Without TURN credentials: Uses STUN only (~80-90% connection success)
+- With TURN credentials: 99%+ connection success in all network conditions
+- Free tier from Metered.ca: 50GB/month bandwidth (sufficient for most use cases)
 
 In the Docker Compose topology these are baked in at build time (see
 `apps/client/Dockerfile` build args) because nginx proxies `/api` and

@@ -1,14 +1,12 @@
 import type { RouteObject } from 'react-router-dom';
 import LoginPage from '../features/auth/pages/LoginPage';
+import RegisterChoicePage from '../features/auth/pages/RegisterChoicePage';
 import RegisterPage from '../features/auth/pages/RegisterPage';
-import ForgotPasswordPage from '../features/auth/pages/ForgotPasswordPage';
-import ResetPasswordPage from '../features/auth/pages/ResetPasswordPage';
-import VerifyEmailPage from '../features/auth/pages/VerifyEmailPage';
+import RegisterAdminPage from '../features/auth/pages/RegisterAdminPage';
 
 export const publicRoutes: RouteObject[] = [
   { path: 'login', element: <LoginPage /> },
-  { path: 'register', element: <RegisterPage /> },
-  { path: 'forgot-password', element: <ForgotPasswordPage /> },
-  { path: 'reset-password/:token', element: <ResetPasswordPage /> },
-  { path: 'verify-email/:token', element: <VerifyEmailPage /> },
+  { path: 'register', element: <RegisterChoicePage /> },
+  { path: 'register/patient', element: <RegisterPage /> },
+  { path: 'register-admin', element: <RegisterAdminPage /> },
 ];

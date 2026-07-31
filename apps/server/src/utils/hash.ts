@@ -11,15 +11,10 @@ export async function compareValue(value: string, hash: string): Promise<boolean
 }
 
 /**
- * Deterministic (non-bcrypt) hash for opaque single-use tokens (email
- * verification, password reset, refresh-token-at-rest) that need to be
- * looked up by exact match rather than verified against a candidate —
- * bcrypt's per-hash random salt makes it unsuitable for that lookup.
+ * Deterministic (non-bcrypt) hash for the refresh-token-at-rest — needs to
+ * be looked up by exact match rather than verified against a candidate,
+ * which is what bcrypt's per-hash random salt is for.
  */
 export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
-}
-
-export function generateOpaqueToken(): string {
-  return crypto.randomBytes(32).toString('hex');
 }

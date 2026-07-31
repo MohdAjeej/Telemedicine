@@ -16,7 +16,13 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', listAppointmentsValidation, validateRequest, appointmentController.list);
-router.post('/', authorize('patient'), bookAppointmentValidation, validateRequest, appointmentController.book);
+router.post(
+  '/',
+  authorize('health_officer'),
+  bookAppointmentValidation,
+  validateRequest,
+  appointmentController.book,
+);
 
 router.get(
   '/:id',

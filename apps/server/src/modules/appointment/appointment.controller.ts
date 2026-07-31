@@ -7,13 +7,13 @@ import { appointmentService } from './appointment.service';
 
 export const appointmentController = {
   book: asyncHandler(async (req: Request, res: Response) => {
-    const appointment = await appointmentService.book(req.user!.id, req.body);
+    const appointment = await appointmentService.book(req.user!.id, req.user!.role, req.body);
     sendSuccess(res, appointment, 'Appointment requested', HTTP_STATUS.CREATED);
   }),
 
   list: asyncHandler(async (req: Request, res: Response) => {
     const result = await appointmentService.list(
-      { userId: req.user!.id, role: req.user!.role },
+      { userId: req.user!.id, role: req.user!.role, hospitalId: req.user!.hospitalId },
       {
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,

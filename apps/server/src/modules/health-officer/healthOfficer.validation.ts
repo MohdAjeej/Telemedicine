@@ -2,13 +2,20 @@ import { body, param, query } from 'express-validator';
 
 export const createHealthOfficerValidation = [
   body('email').isEmail().withMessage('A valid email is required'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters')
+    .matches(/[a-z]/)
+    .withMessage('Password must contain a lowercase letter')
+    .matches(/[A-Z]/)
+    .withMessage('Password must contain an uppercase letter')
+    .matches(/\d/)
+    .withMessage('Password must contain a number'),
   body('firstName').trim().notEmpty().withMessage('First name is required'),
   body('lastName').trim().notEmpty().withMessage('Last name is required'),
-  body('hospitalId').optional().isMongoId().withMessage('Invalid hospital id'),
 ];
 
 export const updateHealthOfficerValidation = [
-  body('hospitalId').optional().isMongoId().withMessage('Invalid hospital id'),
   body('certifications').optional().isArray().withMessage('Certifications must be an array'),
 ];
 

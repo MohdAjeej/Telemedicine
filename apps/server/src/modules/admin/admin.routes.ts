@@ -5,7 +5,6 @@ import { validateRequest } from '../../middlewares/validate.middleware';
 import { adminController } from './admin.controller';
 import {
   adminIdValidation,
-  createAdminValidation,
   listUsersValidation,
   updatePermissionsValidation,
   updateUserStatusValidation,
@@ -34,7 +33,6 @@ router.patch(
 router.get('/', adminController.list);
 router.get('/me', adminController.getMe);
 router.get('/:id', adminIdValidation, validateRequest, adminController.getById);
-router.post('/', createAdminValidation, validateRequest, adminController.create);
 router.delete('/:id', adminIdValidation, validateRequest, adminController.remove);
 
 export default router;

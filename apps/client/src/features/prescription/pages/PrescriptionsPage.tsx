@@ -1,7 +1,7 @@
-import { PageHeader, StatusBadge, EmptyState } from '@telemedicine/ui';
-import { Card, CardContent, Stack, Typography, Chip } from '@mui/material';
-import { format } from 'date-fns';
+import { PageHeader, EmptyState } from '@telemedicine/ui';
+import { Stack } from '@mui/material';
 import { useListPrescriptionsQuery } from '../prescriptionApi';
+import { PrescriptionCard } from '../components/PrescriptionCard';
 
 export default function PrescriptionsPage() {
   const { data: prescriptions = [] } = useListPrescriptionsQuery();
@@ -14,25 +14,7 @@ export default function PrescriptionsPage() {
       ) : (
         <Stack spacing={2}>
           {prescriptions.map((prescription) => (
-            <Card key={prescription._id} variant="outlined">
-              <CardContent>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1.5 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    {format(new Date(prescription.issuedAt), 'MMM d, yyyy')}
-                  </Typography>
-                  <StatusBadge status={prescription.status} />
-                </Stack>
-                <Stack direction="row" flexWrap="wrap" gap={1}>
-                  {prescription.medications.map((medication, index) => (
-                    <Chip
-                      key={`${prescription._id}-${index}`}
-                      label={`${medication.name} — ${medication.dosage}, ${medication.frequency}`}
-                      variant="outlined"
-                    />
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+            <PrescriptionCard key={prescription._id} prescription={prescription} />
           ))}
         </Stack>
       )}

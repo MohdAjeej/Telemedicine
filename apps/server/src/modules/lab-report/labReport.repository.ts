@@ -1,7 +1,12 @@
 import { LabReportModel, type HydratedLabReport, type LabReportStatus } from './labReport.model';
 
 export const labReportRepository = {
-  create(input: { patientId: string; requestedBy: string; testType: string }): Promise<HydratedLabReport> {
+  create(input: {
+    patientId: string;
+    hospitalId: string;
+    requestedBy: string;
+    testType: string;
+  }): Promise<HydratedLabReport> {
     return LabReportModel.create(input);
   },
 
@@ -20,5 +25,9 @@ export const labReportRepository = {
     const update: Record<string, unknown> = { ...input };
     if (input.status === 'completed') update.completedAt = new Date();
     return LabReportModel.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
+  },
+
+  deleteById(id: string): Promise<HydratedLabReport | null> {
+    return LabReportModel.findByIdAndDelete(id).exec();
   },
 };

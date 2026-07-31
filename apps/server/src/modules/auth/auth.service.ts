@@ -2,17 +2,25 @@ import crypto from 'node:crypto';
 import ms from 'ms';
 import type { Role } from '@telemedicine/constants';
 import { ApiError } from '../../helpers/ApiError';
-import { compareValue, generateOpaqueToken, hashToken, hashValue } from '../../utils/hash';
+import { compareValue, hashToken, hashValue } from '../../utils/hash';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
-import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeSetPasswordEmail } from '../../utils/mailer';
 import { recordAuditLog } from '../audit-log/auditLog.service';
 import { env } from '../../config/env';
+import { hospitalRepository } from '../hospital/hospital.repository';
+import { adminRepository } from '../admin/admin.repository';
+import { doctorRepository } from '../doctor/doctor.repository';
+import { healthOfficerRepository } from '../health-officer/healthOfficer.repository';
+import { patientRepository } from '../patient/patient.repository';
 import { authRepository } from './auth.repository';
 import type { HydratedUser } from './user.model';
-import type { LoginInput, RegisterInput, RequestMeta, SanitizedUser, TokenPair } from './auth.types';
-
-const EMAIL_VERIFICATION_TTL_MS = ms('24h');
-const RESET_PASSWORD_TTL_MS = ms('1h');
+import type {
+  LoginInput,
+  RegisterAdminInput,
+  RegisterInput,
+  RequestMeta,
+  SanitizedUser,
+  TokenPair,
+} from './auth.types';
 
 function sanitizeUser(user: HydratedUser): SanitizedUser {
   return {
@@ -23,20 +31,63 @@ function sanitizeUser(user: HydratedUser): SanitizedUser {
     lastName: user.lastName,
     phone: user.phone,
     avatarUrl: user.avatarUrl,
-    isEmailVerified: user.isEmailVerified,
     status: user.status,
   };
+}
+
+/**
+ * Extracts a plain ObjectId hex string from a `hospitalId` field that may or
+ * may not have been populated into a full Hospital document by the
+ * repository's `findByUserId` (doctor/patient populate it, admin/health
+ * officer don't). Mongoose documents have their own `toString()` that
+ * pretty-prints the whole document, so calling `.toString()` directly on a
+ * populated ref silently produces garbage instead of the id.
+ */
+function extractHospitalId(hospitalId: unknown): string | undefined {
+  if (!hospitalId) return undefined;
+  const ref = hospitalId as { _id?: unknown };
+  return ref._id ? String(ref._id) : String(hospitalId);
+}
+
+/**
+ * Looks up the caller's hospitalId from their role-specific profile so it can
+ * be embedded in the access token — the only place the JWT's hospitalId claim
+ * comes from downstream (register/registerAdmin already know it directly and
+ * skip this lookup).
+ */
+async function resolveHospitalId(userId: string, role: Role): Promise<string | undefined> {
+  switch (role) {
+    case 'admin': {
+      const admin = await adminRepository.findByUserId(userId);
+      return extractHospitalId(admin?.hospitalId);
+    }
+    case 'doctor': {
+      const doctor = await doctorRepository.findByUserId(userId);
+      return extractHospitalId(doctor?.hospitalId);
+    }
+    case 'health_officer': {
+      const officer = await healthOfficerRepository.findByUserId(userId);
+      return extractHospitalId(officer?.hospitalId);
+    }
+    case 'patient': {
+      const patient = await patientRepository.findByUserId(userId);
+      return extractHospitalId(patient?.hospitalId);
+    }
+    default:
+      return undefined;
+  }
 }
 
 async function issueTokenPair(
   userId: string,
   role: Role,
+  hospitalId: string | undefined,
   meta: RequestMeta,
   family: string = crypto.randomUUID(),
 ): Promise<TokenPair & { jti: string }> {
   const jti = crypto.randomUUID();
   const refreshToken = signRefreshToken({ sub: userId, jti, family });
-  const accessToken = signAccessToken({ sub: userId, role, jti });
+  const accessToken = signAccessToken({ sub: userId, role, hospitalId, jti });
 
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt.getTime() + ms(env.JWT_REFRESH_EXPIRES_IN));
@@ -56,29 +107,57 @@ async function issueTokenPair(
 }
 
 export const authService = {
-  async register(input: RegisterInput, meta: RequestMeta): Promise<SanitizedUser> {
+  /**
+   * Public self-registration — patient only (see auth.types.ts). Creates the
+   * User and Patient profile together and logs the patient in immediately:
+   * this system has no email verification step to gate on.
+   */
+  async register(
+    input: RegisterInput,
+    meta: RequestMeta,
+  ): Promise<{ user: SanitizedUser; tokens: TokenPair }> {
     const existing = await authRepository.findUserByEmail(input.email);
     if (existing) {
       throw ApiError.conflict('An account with this email already exists');
     }
 
-    const passwordHash = await hashValue(input.password);
-    const verificationToken = generateOpaqueToken();
+    const hospital = await hospitalRepository.findById(input.hospitalId);
+    if (!hospital) {
+      throw ApiError.badRequest('Selected hospital does not exist');
+    }
 
+    const passwordHash = await hashValue(input.password);
     const user = await authRepository.createUser({
       email: input.email,
       passwordHash,
-      role: input.role,
+      role: 'patient',
+      hospitalId: input.hospitalId,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
-      emailVerificationTokenHash: hashToken(verificationToken),
-      emailVerificationExpires: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS),
     });
 
-    await sendVerificationEmail(user.email, verificationToken);
+    try {
+      await patientRepository.create({
+        userId: user._id.toString(),
+        hospitalId: input.hospitalId,
+        age: input.age,
+      });
+    } catch (error) {
+      await authRepository.deleteUser(user._id.toString());
+      throw error;
+    }
+
+    const { jti: _jti, ...tokens } = await issueTokenPair(
+      user._id.toString(),
+      user.role,
+      input.hospitalId,
+      meta,
+    );
+
     await recordAuditLog({
       actorId: user._id.toString(),
+      hospitalId: input.hospitalId,
       action: 'user.register',
       entityType: 'User',
       entityId: user._id.toString(),
@@ -86,47 +165,103 @@ export const authService = {
       userAgent: meta.userAgent,
     });
 
-    return sanitizeUser(user);
+    return { user: sanitizeUser(user), tokens };
   },
 
   /**
-   * Admin-initiated account creation (Doctor/Patient/Health Officer
-   * management screens). The account is created with a random unusable
-   * password and an immediate "set your password" link, rather than the
-   * admin choosing or seeing a password on the user's behalf.
+   * Creates a new Hospital and its owning Admin account together, then logs
+   * the admin in immediately. "One Admin manages exactly one Hospital" —
+   * this is the only way a Hospital (and its first Admin) comes into being.
+   */
+  async registerAdmin(
+    input: RegisterAdminInput,
+    meta: RequestMeta,
+  ): Promise<{ user: SanitizedUser; tokens: TokenPair }> {
+    const existing = await authRepository.findUserByEmail(input.email);
+    if (existing) {
+      throw ApiError.conflict('An account with this email already exists');
+    }
+
+    const hospital = await hospitalRepository.create({
+      name: input.hospitalName,
+      registrationNumber: `HOSP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      type: 'hospital',
+      phone: '',
+      email: input.email,
+    });
+
+    const passwordHash = await hashValue(input.password);
+    const user = await authRepository.createUser({
+      email: input.email,
+      passwordHash,
+      role: 'admin',
+      hospitalId: hospital._id.toString(),
+      // No name field in the registration spec — filled in later via the
+      // Hospital Profile / account settings screen if the admin wants it.
+      firstName: 'Hospital',
+      lastName: 'Administrator',
+    });
+
+    try {
+      await adminRepository.updateByUserId(user._id.toString(), {
+        hospitalId: hospital._id.toString(),
+        permissions: ['*'],
+      });
+    } catch (error) {
+      await authRepository.deleteUser(user._id.toString());
+      await hospitalRepository.delete(hospital._id.toString());
+      throw error;
+    }
+
+    const { jti: _jti, ...tokens } = await issueTokenPair(
+      user._id.toString(),
+      user.role,
+      hospital._id.toString(),
+      meta,
+    );
+
+    await recordAuditLog({
+      actorId: user._id.toString(),
+      hospitalId: hospital._id.toString(),
+      action: 'admin.register',
+      entityType: 'Hospital',
+      entityId: hospital._id.toString(),
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return { user: sanitizeUser(user), tokens };
+  },
+
+  /**
+   * Admin-initiated account creation (Doctor/Health Officer/Patient
+   * management screens). The admin chooses the password directly — there is
+   * no invite-email step in this system.
    */
   async provisionAccount(input: {
     email: string;
+    password: string;
     firstName: string;
     lastName: string;
     phone?: string;
     role: Role;
+    hospitalId: string;
   }): Promise<SanitizedUser> {
     const existing = await authRepository.findUserByEmail(input.email);
     if (existing) {
       throw ApiError.conflict('An account with this email already exists');
     }
 
-    const placeholderPassword = generateOpaqueToken();
-    const passwordHash = await hashValue(placeholderPassword);
-
+    const passwordHash = await hashValue(input.password);
     const user = await authRepository.createUser({
       email: input.email,
       passwordHash,
       role: input.role,
+      hospitalId: input.hospitalId,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
-      emailVerificationTokenHash: hashToken(generateOpaqueToken()),
-      emailVerificationExpires: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS),
     });
-
-    const setPasswordToken = generateOpaqueToken();
-    user.resetPasswordTokenHash = hashToken(setPasswordToken);
-    user.resetPasswordExpires = new Date(Date.now() + RESET_PASSWORD_TTL_MS);
-    await user.save();
-
-    await sendWelcomeSetPasswordEmail(user.email, setPasswordToken);
 
     return sanitizeUser(user);
   },
@@ -149,13 +284,19 @@ export const authService = {
       throw ApiError.unauthorized('Invalid email or password');
     }
 
-    const { jti: _jti, ...tokens } = await issueTokenPair(user._id.toString(), user.role, meta);
+    const hospitalId = await resolveHospitalId(user._id.toString(), user.role);
+    const { jti: _jti, ...tokens } = await issueTokenPair(
+      user._id.toString(),
+      user.role,
+      hospitalId,
+      meta,
+    );
 
-    user.lastLoginAt = new Date();
-    await user.save();
+    await authRepository.touchLastLogin(user._id.toString());
 
     await recordAuditLog({
       actorId: user._id.toString(),
+      hospitalId,
       action: 'user.login',
       entityType: 'User',
       entityId: user._id.toString(),
@@ -166,7 +307,7 @@ export const authService = {
     return { user: sanitizeUser(user), tokens };
   },
 
-  async refresh(refreshToken: string, meta: RequestMeta): Promise<TokenPair> {
+  async refresh(refreshToken: string, meta: RequestMeta): Promise<{ user: SanitizedUser; tokens: TokenPair }> {
     let payload;
     try {
       payload = verifyRefreshToken(refreshToken);
@@ -197,16 +338,18 @@ export const authService = {
       throw ApiError.unauthorized('Account is not active');
     }
 
+    const hospitalId = await resolveHospitalId(user._id.toString(), user.role);
     const { jti: _newJti, ...tokens } = await issueTokenPair(
       user._id.toString(),
       user.role,
+      hospitalId,
       meta,
       session.family,
     );
     const newSession = await authRepository.findSessionByJti(_newJti);
     await authRepository.revokeSession(session._id.toString(), newSession?._id.toString());
 
-    return tokens;
+    return { user: sanitizeUser(user), tokens };
   },
 
   async logout(refreshToken: string | undefined): Promise<void> {
@@ -223,51 +366,6 @@ export const authService = {
     }
   },
 
-  async forgotPassword(email: string): Promise<void> {
-    const user = await authRepository.findUserByEmail(email);
-    if (!user) {
-      // Do not reveal whether the email is registered.
-      return;
-    }
-
-    const resetToken = generateOpaqueToken();
-    user.resetPasswordTokenHash = hashToken(resetToken);
-    user.resetPasswordExpires = new Date(Date.now() + RESET_PASSWORD_TTL_MS);
-    await user.save();
-
-    await sendPasswordResetEmail(user.email, resetToken);
-  },
-
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    const user = await authRepository.findUserByResetTokenHash(hashToken(token));
-    if (!user) {
-      throw ApiError.badRequest('Invalid or expired password reset token');
-    }
-
-    user.passwordHash = await hashValue(newPassword);
-    user.resetPasswordTokenHash = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-
-    // A password reset invalidates every existing session as a precaution.
-    await authRepository.revokeAllSessionsForUser(user._id.toString());
-  },
-
-  async verifyEmail(token: string): Promise<void> {
-    const user = await authRepository.findUserByVerificationTokenHash(hashToken(token));
-    if (!user) {
-      throw ApiError.badRequest('Invalid or expired verification token');
-    }
-
-    user.isEmailVerified = true;
-    if (user.status === 'pending') {
-      user.status = 'active';
-    }
-    user.emailVerificationTokenHash = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
-  },
-
   async getMe(userId: string): Promise<SanitizedUser> {
     const user = await authRepository.findUserById(userId);
     if (!user) {
@@ -276,16 +374,40 @@ export const authService = {
     return sanitizeUser(user);
   },
 
+  /** Self-service account-detail edit (name/phone) — available to every role, unlike the role-specific /me endpoints which only touch the Doctor/Patient/HealthOfficer sub-profile. */
+  async updateMe(
+    userId: string,
+    input: { firstName?: string; lastName?: string; phone?: string },
+  ): Promise<SanitizedUser> {
+    const user = await authRepository.updateUser(userId, input);
+    if (!user) {
+      throw ApiError.notFound('User not found');
+    }
+    return sanitizeUser(user);
+  },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await authRepository.findUserByIdWithPassword(userId);
+    if (!user) {
+      throw ApiError.notFound('User not found');
+    }
+
+    const matches = await compareValue(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw ApiError.unauthorized('Current password is incorrect');
+    }
+
+    const passwordHash = await hashValue(newPassword);
+    await authRepository.updatePassword(userId, passwordHash);
+  },
+
   /** Compensating action if profile-document creation fails right after provisionAccount(). */
   async deleteAccount(userId: string): Promise<void> {
     await authRepository.deleteUser(userId);
     await authRepository.revokeAllSessionsForUser(userId);
   },
 
-  async setAccountStatus(
-    userId: string,
-    status: 'pending' | 'active' | 'suspended',
-  ): Promise<SanitizedUser> {
+  async setAccountStatus(userId: string, status: 'active' | 'suspended'): Promise<SanitizedUser> {
     const user = await authRepository.setUserStatus(userId, status);
     if (!user) throw ApiError.notFound('User not found');
     if (status === 'suspended') {
@@ -294,13 +416,14 @@ export const authService = {
     return sanitizeUser(user);
   },
 
-  /** Admin "User Management" listing — every role in one paginated, filterable view. */
+  /** Admin "User Management" listing — every role within the caller's own hospital, in one paginated, filterable view. */
   async listUsers(query: {
     page?: number;
     limit?: number;
     role?: Role;
-    status?: 'pending' | 'active' | 'suspended';
+    status?: 'active' | 'suspended';
     search?: string;
+    hospitalId: string;
   }) {
     const result = await authRepository.findManyUsers(query);
     return { ...result, items: result.items.map(sanitizeUser) };

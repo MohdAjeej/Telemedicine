@@ -1,4 +1,6 @@
 import { ApiError } from '../../helpers/ApiError';
+import { toHospitalIdString } from '../../helpers/hospitalScope';
+import { patientRepository } from '../patient/patient.repository';
 import { medicalRecordRepository } from './medicalRecord.repository';
 
 export const medicalRecordService = {
@@ -11,7 +13,9 @@ export const medicalRecordService = {
     uploadedBy: string;
     tags?: string[];
   }) {
-    return medicalRecordRepository.create(input);
+    const patient = await patientRepository.findById(input.patientId);
+    if (!patient) throw ApiError.notFound('Patient not found');
+    return medicalRecordRepository.create({ ...input, hospitalId: toHospitalIdString(patient.hospitalId)! });
   },
 
   async listForPatient(patientId: string) {

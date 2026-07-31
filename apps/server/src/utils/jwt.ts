@@ -5,6 +5,7 @@ import type { Role } from '@telemedicine/constants';
 export interface AccessTokenPayload {
   sub: string;
   role: Role;
+  hospitalId?: string;
   jti: string;
 }
 

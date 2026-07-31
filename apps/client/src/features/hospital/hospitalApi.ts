@@ -27,30 +27,7 @@ export const hospitalApi = baseApi.injectEndpoints({
             ]
           : [{ type: 'Hospital' as const, id: 'LIST' }],
     }),
-    getHospital: builder.query<Hospital, string>({
-      query: (id) => `/hospitals/${id}`,
-      transformResponse: (response: { data: Hospital }) => response.data,
-      providesTags: (_result, _error, id) => [{ type: 'Hospital', id }],
-    }),
-    createHospital: builder.mutation<Hospital, Record<string, unknown>>({
-      query: (body) => ({ url: '/hospitals', method: 'POST', body }),
-      invalidatesTags: [{ type: 'Hospital', id: 'LIST' }],
-    }),
-    updateHospital: builder.mutation<Hospital, { id: string; body: Record<string, unknown> }>({
-      query: ({ id, body }) => ({ url: `/hospitals/${id}`, method: 'PATCH', body }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'Hospital', id }, { type: 'Hospital', id: 'LIST' }],
-    }),
-    deleteHospital: builder.mutation<void, string>({
-      query: (id) => ({ url: `/hospitals/${id}`, method: 'DELETE' }),
-      invalidatesTags: [{ type: 'Hospital', id: 'LIST' }],
-    }),
   }),
 });
 
-export const {
-  useListHospitalsQuery,
-  useGetHospitalQuery,
-  useCreateHospitalMutation,
-  useUpdateHospitalMutation,
-  useDeleteHospitalMutation,
-} = hospitalApi;
+export const { useListHospitalsQuery } = hospitalApi;

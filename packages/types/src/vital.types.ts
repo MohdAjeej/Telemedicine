@@ -4,7 +4,8 @@ export interface Vital extends BaseEntity {
   patientId: string;
   recordedBy: string;
   recordedAt: string;
-  bloodPressure?: { systolic: number; diastolic: number };
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
   heartRate?: number;
   temperature?: number;
   respiratoryRate?: number;
@@ -12,5 +13,7 @@ export interface Vital extends BaseEntity {
   weight?: number;
   height?: number;
   bmi?: number;
+  bloodSugar?: number;
+  symptoms?: string;
   notes?: string;
 }

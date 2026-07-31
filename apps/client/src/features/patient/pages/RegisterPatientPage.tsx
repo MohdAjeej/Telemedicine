@@ -7,9 +7,11 @@ import { useRegisterPatientMutation } from '../patientApi';
 
 interface RegisterPatientForm {
   email: string;
+  password: string;
   firstName: string;
   lastName: string;
   phone: string;
+  age: number | '';
   gender: 'male' | 'female' | 'other' | '';
 }
 
@@ -19,7 +21,7 @@ export default function RegisterPatientPage() {
   const [success, setSuccess] = useState(false);
 
   const { control, handleSubmit, reset } = useForm<RegisterPatientForm>({
-    defaultValues: { email: '', firstName: '', lastName: '', phone: '', gender: '' },
+    defaultValues: { email: '', password: '', firstName: '', lastName: '', phone: '', age: '', gender: '' },
   });
 
   const onSubmit = async (values: RegisterPatientForm) => {
@@ -47,11 +49,13 @@ export default function RegisterPatientPage() {
         sx={{ maxWidth: 480 }}
       >
         {formError && <Alert severity="error">{formError}</Alert>}
-        {success && <Alert severity="success">Patient registered. They'll receive an email to set their password.</Alert>}
+        {success && <Alert severity="success">Patient registered successfully.</Alert>}
         <FormTextField name="firstName" control={control} label="First name" />
         <FormTextField name="lastName" control={control} label="Last name" />
+        <FormTextField name="age" control={control} label="Age" type="number" />
         <FormTextField name="email" control={control} label="Email" type="email" />
         <FormTextField name="phone" control={control} label="Phone" />
+        <FormTextField name="password" control={control} label="Password" type="password" />
         <Controller
           name="gender"
           control={control}

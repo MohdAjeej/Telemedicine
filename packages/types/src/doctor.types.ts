@@ -19,4 +19,8 @@ export interface Doctor extends BaseEntity {
   rating: number;
   bio?: string;
   department?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  bloodGroup?: string;
+  address?: string;
 }

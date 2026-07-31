@@ -17,6 +17,11 @@ export const requireAppointmentAccess = asyncHandler(
 
     const user = req.user!;
     if (user.role === 'admin' || user.role === 'health_officer') {
+      const hospitalRef = appointment.hospitalId as unknown as { _id?: unknown };
+      const appointmentHospitalId = String(hospitalRef?._id ?? appointment.hospitalId);
+      if (!user.hospitalId || appointmentHospitalId !== user.hospitalId) {
+        throw ApiError.forbidden('You do not have access to this appointment');
+      }
       next();
       return;
     }

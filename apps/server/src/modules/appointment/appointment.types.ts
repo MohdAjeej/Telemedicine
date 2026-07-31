@@ -7,6 +7,8 @@ export interface BookAppointmentInput {
   scheduledEnd?: string;
   type: AppointmentType;
   reasonForVisit: string;
+  /** Required — Health Officers are the only actors who can book, always on behalf of a patient. */
+  patientId: string;
 }
 
 export interface ListAppointmentsQuery {
@@ -23,4 +25,5 @@ export interface ListAppointmentsQuery {
 export interface RequestActor {
   userId: string;
   role: string;
+  hospitalId?: string;
 }

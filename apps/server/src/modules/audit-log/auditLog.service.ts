@@ -2,6 +2,7 @@ import { AuditLogModel } from './auditLog.model';
 
 export interface RecordAuditLogInput {
   actorId?: string;
+  hospitalId?: string;
   action: string;
   entityType: string;
   entityId?: string;

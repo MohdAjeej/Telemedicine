@@ -18,12 +18,6 @@ const envSchema = z.object({
 
   BCRYPT_SALT_ROUNDS: z.coerce.number().default(12),
 
-  MAIL_HOST: z.string().optional(),
-  MAIL_PORT: z.coerce.number().optional(),
-  MAIL_USER: z.string().optional(),
-  MAIL_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default('Telemedicine Platform <no-reply@telemedicine.local>'),
-
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),

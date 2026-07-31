@@ -5,6 +5,7 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
+import type { User } from '@telemedicine/types';
 import type { RootState } from '../../app/store';
 import { logout, setCredentials } from '../../features/auth/authSlice';
 
@@ -42,10 +43,19 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
       extraOptions,
     );
 
-    const refreshData = refreshResult.data as { data?: { accessToken?: string } } | undefined;
+    const refreshData = refreshResult.data as
+      | { data?: { user?: User; accessToken?: string } }
+      | undefined;
 
     if (refreshData?.data?.accessToken) {
-      api.dispatch(setCredentials({ accessToken: refreshData.data.accessToken }));
+      // Also apply `user` here, not just the token — a silent refresh can come back
+      // for a different account than the one currently in state (e.g. the shared,
+      // browser-wide refresh cookie was overwritten by a login in another tab), and
+      // leaving state.auth.user stale would let role-gated UI keep rendering even
+      // though the server will reject the actual role's requests.
+      api.dispatch(
+        setCredentials({ user: refreshData.data.user, accessToken: refreshData.data.accessToken }),
+      );
       result = await rawBaseQuery(args, api, extraOptions);
     } else {
       api.dispatch(logout());
@@ -68,7 +78,6 @@ export const baseApi = createApi({
     'Consultation',
     'Prescription',
     'Vital',
-    'MedicalRecord',
     'LabReport',
     'Notification',
     'Conversation',

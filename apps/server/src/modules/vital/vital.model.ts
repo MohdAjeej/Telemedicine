@@ -3,6 +3,7 @@ import { Schema, model, type HydratedDocument } from 'mongoose';
 export interface VitalDocument {
   _id: Schema.Types.ObjectId;
   patientId: Schema.Types.ObjectId;
+  hospitalId: Schema.Types.ObjectId;
   recordedBy: Schema.Types.ObjectId;
   recordedAt: Date;
   bloodPressureSystolic?: number;
@@ -14,6 +15,8 @@ export interface VitalDocument {
   weight?: number;
   height?: number;
   bmi?: number;
+  bloodSugar?: number;
+  symptoms?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +27,7 @@ export type HydratedVital = HydratedDocument<VitalDocument>;
 const vitalSchema = new Schema<VitalDocument>(
   {
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true, index: true },
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     recordedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     recordedAt: { type: Date, default: () => new Date() },
     bloodPressureSystolic: { type: Number },
@@ -35,6 +39,8 @@ const vitalSchema = new Schema<VitalDocument>(
     weight: { type: Number },
     height: { type: Number },
     bmi: { type: Number },
+    bloodSugar: { type: Number },
+    symptoms: { type: String },
     notes: { type: String },
   },
   { timestamps: true },

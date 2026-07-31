@@ -13,7 +13,7 @@ export interface HospitalDocument {
     country?: string;
   };
   contact: {
-    phone: string;
+    phone?: string;
     email: string;
     website?: string;
   };
@@ -40,7 +40,10 @@ const hospitalSchema = new Schema<HospitalDocument>(
       country: String,
     },
     contact: {
-      phone: { type: String, required: true },
+      // Only email is guaranteed at registration time (registerAdmin only
+      // collects hospitalName/email/password) — phone/website are filled in
+      // later via the Hospital Profile screen.
+      phone: { type: String },
       email: { type: String, required: true },
       website: String,
     },

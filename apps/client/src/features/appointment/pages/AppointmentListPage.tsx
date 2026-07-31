@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Stack, MenuItem, TextField } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { DataTable, PageHeader, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
 import type { Appointment, AppointmentStatus } from '@telemedicine/types';
 import { format } from 'date-fns';
@@ -29,6 +30,7 @@ function participantName(entity: unknown): string {
 
 export default function AppointmentListPage() {
   const role = useAppSelector((state) => state.auth.user?.role);
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<AppointmentStatus | ''>('');
 
@@ -44,6 +46,8 @@ export default function AppointmentListPage() {
   const [cancelAppointment] = useCancelAppointmentMutation();
 
   const canManage = role === 'doctor' || role === 'health_officer' || role === 'admin';
+  const canJoinVideo = role === 'doctor' || role === 'health_officer';
+  const roleSegment = role === 'doctor' ? 'doctor' : role === 'health_officer' ? 'health-officer' : '';
 
   const columns: DataTableColumn<Appointment>[] = [
     {
@@ -61,6 +65,27 @@ export default function AppointmentListPage() {
       header: 'Actions',
       render: (row) => (
         <Stack direction="row" spacing={1}>
+          {canJoinVideo && row.type === 'video' && row.status === 'confirmed' && (
+            <>
+              {role === 'doctor' && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={() => navigate(`/app/doctor/video-test/${row._id}`)}
+                >
+                  Test Video
+                </Button>
+              )}
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => navigate(`/app/${roleSegment}/video/${row._id}`)}
+              >
+                Join Video
+              </Button>
+            </>
+          )}
           {canManage && row.status === 'pending' && (
             <Button size="small" variant="outlined" onClick={() => confirmAppointment(row._id)}>
               Confirm

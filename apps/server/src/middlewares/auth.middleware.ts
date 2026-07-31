@@ -7,6 +7,7 @@ import { verifyAccessToken } from '../utils/jwt';
 export interface AuthenticatedUser {
   id: string;
   role: Role;
+  hospitalId?: string;
   jti: string;
 }
 
@@ -30,7 +31,7 @@ export const authenticate = asyncHandler(
 
     try {
       const payload = verifyAccessToken(token);
-      req.user = { id: payload.sub, role: payload.role, jti: payload.jti };
+      req.user = { id: payload.sub, role: payload.role, hospitalId: payload.hospitalId, jti: payload.jti };
       next();
     } catch {
       throw ApiError.unauthorized('Invalid or expired token');

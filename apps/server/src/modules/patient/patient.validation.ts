@@ -2,13 +2,24 @@ import { body, param, query } from 'express-validator';
 
 export const createPatientValidation = [
   body('email').isEmail().withMessage('A valid email is required'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters')
+    .matches(/[a-z]/)
+    .withMessage('Password must contain a lowercase letter')
+    .matches(/[A-Z]/)
+    .withMessage('Password must contain an uppercase letter')
+    .matches(/\d/)
+    .withMessage('Password must contain a number'),
   body('firstName').trim().notEmpty().withMessage('First name is required'),
   body('lastName').trim().notEmpty().withMessage('Last name is required'),
+  body('age').isInt({ min: 0, max: 150 }).withMessage('A valid age is required').toInt(),
   body('dateOfBirth').optional().isISO8601().withMessage('Invalid date of birth'),
   body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Invalid gender'),
 ];
 
 export const updatePatientValidation = [
+  body('age').optional().isInt({ min: 0, max: 150 }).withMessage('Invalid age'),
   body('dateOfBirth').optional().isISO8601().withMessage('Invalid date of birth'),
   body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Invalid gender'),
   body('assignedDoctorId').optional().isMongoId().withMessage('Invalid doctor id'),
@@ -19,4 +30,6 @@ export const patientIdValidation = [param('id').isMongoId().withMessage('Invalid
 export const listPatientsValidation = [
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+  query('hospitalId').optional().isMongoId().withMessage('Invalid hospital id'),
+  query('assignedDoctorId').optional().isMongoId().withMessage('Invalid doctor id'),
 ];

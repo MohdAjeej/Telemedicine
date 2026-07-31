@@ -3,6 +3,7 @@ import { Schema, model, type HydratedDocument } from 'mongoose';
 export interface AdminDocument {
   _id: Schema.Types.ObjectId;
   userId: Schema.Types.ObjectId;
+  hospitalId: Schema.Types.ObjectId;
   permissions: string[];
   department?: string;
   createdAt: Date;
@@ -14,6 +15,10 @@ export type HydratedAdmin = HydratedDocument<AdminDocument>;
 const adminSchema = new Schema<AdminDocument>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
+    // Every Admin owns exactly one Hospital, created together at registration
+    // time (see auth.service.ts registerAdmin) — see docs/architecture.md for
+    // the Hospital → Admin → Doctors/HealthOfficers/Patients relationship.
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     permissions: { type: [String], default: [] },
     department: { type: String },
   },

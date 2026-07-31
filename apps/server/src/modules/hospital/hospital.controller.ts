@@ -1,8 +1,17 @@
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../helpers/asyncHandler';
 import { sendSuccess } from '../../helpers/ApiResponse';
+import { ApiError } from '../../helpers/ApiError';
 import { HTTP_STATUS } from '../../constants/httpStatus';
 import { hospitalService } from './hospital.service';
+
+/** An admin may only ever modify their own hospital — never one chosen by request param. */
+function requireOwnHospital(req: Request): void {
+  if (!req.user!.hospitalId) throw ApiError.forbidden('Your account is not linked to a hospital');
+  if (req.user!.hospitalId !== req.params.id) {
+    throw ApiError.forbidden('You can only manage your own hospital');
+  }
+}
 
 export const hospitalController = {
   create: asyncHandler(async (req: Request, res: Response) => {
@@ -31,11 +40,13 @@ export const hospitalController = {
   }),
 
   update: asyncHandler(async (req: Request, res: Response) => {
+    await requireOwnHospital(req);
     const hospital = await hospitalService.update(req.params.id, req.body);
     sendSuccess(res, hospital, 'Hospital updated');
   }),
 
   remove: asyncHandler(async (req: Request, res: Response) => {
+    await requireOwnHospital(req);
     await hospitalService.remove(req.params.id);
     sendSuccess(res, null, 'Hospital deleted');
   }),

@@ -12,6 +12,7 @@ export interface AppointmentListParams {
 export interface BookAppointmentBody {
   doctorId: string;
   hospitalId: string;
+  patientId?: string;
   scheduledStart: string;
   type: 'in_person' | 'video';
   reasonForVisit: string;

@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useListLabReportsQuery } from '../labReportApi';
 
 export default function TestResultsPage() {
-  const { data: reports = [], isFetching } = useListLabReportsQuery();
+  const { data: reports = [], isFetching } = useListLabReportsQuery({});
 
   const columns: DataTableColumn<LabReport>[] = [
     { key: 'test', header: 'Test', render: (row) => row.testType },

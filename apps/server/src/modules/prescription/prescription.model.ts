@@ -15,7 +15,20 @@ export interface PrescriptionDocument {
   consultationId: Schema.Types.ObjectId;
   doctorId: Schema.Types.ObjectId;
   patientId: Schema.Types.ObjectId;
+  hospitalId: Schema.Types.ObjectId;
+  comorbidity?: string;
+  complaints?: string;
+  allergy?: string;
+  otherIllness?: string;
+  chiefComplaints?: string;
+  symptoms?: string;
   medications: Medication[];
+  advice?: string;
+  provisionalDiagnosis?: string;
+  finalDiagnosis?: string;
+  clinicalFindings?: string;
+  labTests: string[];
+  followUpDate?: Date;
   issuedAt: Date;
   pdfUrl?: string;
   status: PrescriptionStatus;
@@ -41,7 +54,20 @@ const prescriptionSchema = new Schema<PrescriptionDocument>(
     consultationId: { type: Schema.Types.ObjectId, ref: 'Consultation', required: true, index: true },
     doctorId: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true, index: true },
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true, index: true },
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
+    comorbidity: { type: String },
+    complaints: { type: String },
+    allergy: { type: String },
+    otherIllness: { type: String },
+    chiefComplaints: { type: String },
+    symptoms: { type: String },
     medications: { type: [medicationSchema], default: [] },
+    advice: { type: String },
+    provisionalDiagnosis: { type: String },
+    finalDiagnosis: { type: String },
+    clinicalFindings: { type: String },
+    labTests: { type: [String], default: [] },
+    followUpDate: { type: Date },
     issuedAt: { type: Date, default: () => new Date() },
     pdfUrl: { type: String },
     status: { type: String, enum: ['active', 'completed', 'cancelled'], default: 'active' },

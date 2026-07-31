@@ -3,6 +3,7 @@ import { MedicalRecordModel, type HydratedMedicalRecord } from './medicalRecord.
 export const medicalRecordRepository = {
   create(input: {
     patientId: string;
+    hospitalId: string;
     type: string;
     title: string;
     description?: string;

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { Error as MongooseError } from 'mongoose';
 import { ApiError } from '../../helpers/ApiError';
 import { appointmentRepository } from '../appointment/appointment.repository';
 import { consultationRepository } from './consultation.repository';
@@ -14,16 +15,66 @@ export const consultationService = {
     const existing = await consultationRepository.findByAppointmentId(appointmentId);
     if (existing) return existing;
 
-    return consultationRepository.create({
-      appointmentId,
-      doctorId: appointment.doctorId.toString(),
-      patientId: appointment.patientId.toString(),
-      chiefComplaint,
-      videoRoomId: appointment.type === 'video' ? crypto.randomUUID() : undefined,
-    });
+    // Extract the actual ObjectId string, handling both populated and non-populated cases
+    const getDoctorId = (): string => {
+      const id = appointment.doctorId;
+      if (!id) {
+        throw ApiError.badRequest('Appointment is missing doctorId');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (id as any)?._id ? (id as any)._id.toString() : id.toString();
+    };
+
+    const getPatientId = (): string => {
+      const id = appointment.patientId;
+      if (!id) {
+        throw ApiError.badRequest('Appointment is missing patientId');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (id as any)?._id ? (id as any)._id.toString() : id.toString();
+    };
+
+    const getHospitalId = (): string => {
+      const id = appointment.hospitalId;
+      if (!id) {
+        throw ApiError.badRequest('Appointment is missing hospitalId');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (id as any)?._id ? (id as any)._id.toString() : id.toString();
+    };
+
+    try {
+      return await consultationRepository.create({
+        appointmentId,
+        doctorId: getDoctorId(),
+        patientId: getPatientId(),
+        hospitalId: getHospitalId(),
+        chiefComplaint,
+        videoRoomId: appointment.type === 'video' ? crypto.randomUUID() : undefined,
+      });
+    } catch (error) {
+      // If it's a Mongoose validation error, provide more details
+      if (error instanceof MongooseError.ValidationError) {
+        const messages = Object.values(error.errors)
+          .map((err) => err.message)
+          .join(', ');
+        throw ApiError.badRequest(`Validation failed: ${messages}`);
+      }
+      // If it's a cast error (invalid ObjectId format)
+      if (error instanceof MongooseError.CastError) {
+        throw ApiError.badRequest(`Invalid ID format: ${error.message}`);
+      }
+      throw error;
+    }
   },
 
-  async list(filter: { doctorId?: string; patientId?: string; page?: number; limit?: number }) {
+  async list(filter: {
+    doctorId?: string;
+    patientId?: string;
+    hospitalId?: string;
+    page?: number;
+    limit?: number;
+  }) {
     return consultationRepository.findMany(filter);
   },
 

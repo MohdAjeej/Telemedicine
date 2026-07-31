@@ -7,3 +7,5 @@ export * from './components/ConfirmDialog';
 export * from './components/StatusBadge';
 export * from './components/DataTable';
 export * from './components/FormTextField';
+export * from './components/FormMultiSelect';
+export * from './components/ChangePasswordForm';

@@ -5,9 +5,9 @@
 ```
 telemedicine-management-system/
 ├── apps/
-│   ├── client/     React 19 + Vite SPA — all four role dashboards live here
+│   ├── client/     React 19 + Vite SPA — Patient/Doctor/Health Officer dashboards
 │   ├── server/     Express + MongoDB API, Socket.io, cron jobs
-│   └── admin/      Reserved placeholder (see "Why no separate admin app" below)
+│   └── admin/      React 19 + Vite SPA — standalone Admin Console (own login/session/deploy)
 ├── packages/
 │   ├── config/     Shared eslint/typescript/prettier/tailwind/vitest presets
 │   ├── types/      Domain TypeScript interfaces shared client ↔ server
@@ -20,17 +20,24 @@ telemedicine-management-system/
 └── docker-compose.yml, turbo.json, package.json
 ```
 
-## Why no separate `apps/admin`
+## `apps/admin` — standalone Admin Console
 
-Every role (Admin/Doctor/Health Officer/Patient) is a set of dashboards and
-permissions inside **one** authenticated React app (`apps/client`), not four
-separately deployed products. They share a single JWT/session model and are
-not different security perimeters — Admin is a role claim, not a different
-app. Splitting it out would duplicate auth wiring, the RTK Query base API,
-theming, and i18n for no isolation benefit at this scale. `apps/admin/` is
-kept as an empty, reserved workspace so the literal folder tree the project
-was scoped against still exists, in case a genuinely separate, independently
-deployed admin surface (e.g. an air-gapped ops console) is ever needed.
+Admin is deployed as its own app (`apps/admin`), separate from `apps/client`,
+with its own dev server/port, its own login page, and its own Docker service.
+It hits the same `POST /api/v1/auth/login` as every other role, but keeps an
+independent in-memory session (Redux-only access token, never localStorage)
+and its own refresh cookie scoped to its own origin — there is no
+cross-origin cookie/session sharing between the two apps by design, since
+that would introduce SameSite/domain complexity for little benefit.
+
+This means auth wiring, the RTK Query base API, and theming are each
+duplicated between `apps/client` and `apps/admin` (both consume the same
+`packages/*` workspaces, but each has its own `store/api/baseApi.ts`,
+`authSlice.ts`, etc.). `apps/admin` also duplicates a trimmed subset of a few
+RTK Query slices that are also used by other roles in `apps/client`
+(`doctorApi`, `healthOfficerApi`, `patientApi`, `appointmentApi`,
+`notificationApi`) — see `apps/admin/README.md` for the full list and the
+maintenance implication of that duplication.
 
 ## Server layering
 
@@ -77,9 +84,11 @@ touches the server.
 
 ## Deployment topology
 
-One Dockerfile per app. `apps/client`'s image is a multi-stage build ending
-in `nginx:alpine` that serves the static build **and** reverse-proxies `/api`
-and `/socket.io` to the `server` container — this collapses "nginx" and
-"client" into one Compose service instead of a fourth standalone one. See
-`nginx/nginx.conf` / `nginx/conf.d/default.conf` for the proxy rules and
-`docker-compose.yml` for the three-service topology (`mongo`, `server`, `client`).
+One Dockerfile per app. `apps/client`'s and `apps/admin`'s images are both
+multi-stage builds ending in `nginx:alpine` that serve their static build
+**and** reverse-proxy `/api` and `/socket.io` to the `server` container —
+this collapses "nginx" and "app" into one Compose service per frontend
+instead of a shared nginx instance. See `nginx/nginx.conf` /
+`nginx/conf.d/default.conf` (client) / `nginx/conf.d/admin.conf` (admin) for
+the proxy rules and `docker-compose.yml` for the four-service topology
+(`mongo`, `server`, `client`, `admin`).

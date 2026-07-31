@@ -1,12 +1,21 @@
 import type { Role } from '@telemedicine/constants';
 
+/** Public self-registration is patient-only — Doctor/HealthOfficer accounts are admin-created (see doctor/health-officer modules), Admin registration goes through registerAdmin below. */
 export interface RegisterInput {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
   phone?: string;
-  role: Extract<Role, 'patient' | 'doctor' | 'health_officer'>;
+  age: number;
+  hospitalId: string;
+}
+
+/** Creates a new Hospital and its owning Admin account together in one step. */
+export interface RegisterAdminInput {
+  hospitalName: string;
+  email: string;
+  password: string;
 }
 
 export interface LoginInput {
@@ -27,8 +36,7 @@ export interface SanitizedUser {
   lastName: string;
   phone?: string;
   avatarUrl?: string;
-  isEmailVerified: boolean;
-  status: 'pending' | 'active' | 'suspended';
+  status: 'active' | 'suspended';
 }
 
 export interface TokenPair {

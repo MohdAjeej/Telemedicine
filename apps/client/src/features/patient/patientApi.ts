@@ -4,6 +4,7 @@ import { baseApi } from '../../store/api/baseApi';
 export interface PatientListParams {
   page?: number;
   limit?: number;
+  hospitalId?: string;
   assignedDoctorId?: string;
 }
 

@@ -10,8 +10,8 @@ export const adminRepository = {
     return AdminModel.findById(id).populate('userId').exec();
   },
 
-  async findMany() {
-    return AdminModel.find().populate('userId').sort({ createdAt: -1 }).exec();
+  async findMany(hospitalId: string) {
+    return AdminModel.find({ hospitalId }).populate('userId').sort({ createdAt: -1 }).exec();
   },
 
   updateByUserId(userId: string, input: UpdateAdminProfileInput): Promise<HydratedAdmin | null> {

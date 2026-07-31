@@ -12,7 +12,7 @@ router.use(authenticate);
 router.get('/', vitalController.listForPatient);
 router.post(
   '/',
-  authorize('doctor', 'health_officer'),
+  authorize('health_officer'),
   recordVitalValidation,
   validateRequest,
   vitalController.record,

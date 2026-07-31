@@ -4,6 +4,7 @@ import { verifyAccessToken } from '../utils/jwt';
 export interface SocketAuthData {
   id: string;
   role: string;
+  hospitalId?: string;
 }
 
 export interface SocketData {
@@ -24,7 +25,7 @@ export function socketAuthMiddleware(socket: AppSocket, next: (err?: Error) => v
 
   try {
     const payload = verifyAccessToken(token);
-    socket.data.user = { id: payload.sub, role: payload.role };
+    socket.data.user = { id: payload.sub, role: payload.role, hospitalId: payload.hospitalId };
     next();
   } catch {
     next(new Error('Invalid or expired token'));

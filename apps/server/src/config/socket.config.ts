@@ -1,9 +1,15 @@
 import type { ServerOptions } from 'socket.io';
-import { env } from './env';
+import { isAllowedOrigin } from './cors.config';
 
 export const socketServerOptions: Partial<ServerOptions> = {
   cors: {
-    origin: env.CLIENT_URL.split(',').map((origin) => origin.trim()),
+    origin(origin, callback) {
+      if (!origin || isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   },
   path: '/socket.io',

@@ -25,6 +25,10 @@ export const healthOfficerApi = baseApi.injectEndpoints({
       transformResponse: (response: { data: HealthOfficer }) => response.data,
       providesTags: [{ type: 'HealthOfficer', id: 'ME' }],
     }),
+    updateMyHealthOfficerProfile: builder.mutation<HealthOfficer, Record<string, unknown>>({
+      query: (body) => ({ url: '/health-officers/me', method: 'PATCH', body }),
+      invalidatesTags: [{ type: 'HealthOfficer', id: 'ME' }],
+    }),
     createHealthOfficer: builder.mutation<HealthOfficer, Record<string, unknown>>({
       query: (body) => ({ url: '/health-officers', method: 'POST', body }),
       invalidatesTags: [{ type: 'HealthOfficer', id: 'LIST' }],
@@ -39,6 +43,7 @@ export const healthOfficerApi = baseApi.injectEndpoints({
 export const {
   useListHealthOfficersQuery,
   useGetMyHealthOfficerProfileQuery,
+  useUpdateMyHealthOfficerProfileMutation,
   useCreateHealthOfficerMutation,
   useDeleteHealthOfficerMutation,
 } = healthOfficerApi;

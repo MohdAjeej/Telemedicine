@@ -12,13 +12,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+/** Public self-registration is patient-only. */
 export const registerSchema = z
   .object({
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
     email: z.string().email('Enter a valid email address'),
     phone: z.string().optional(),
-    role: z.enum(['patient', 'doctor', 'health_officer']),
+    age: z.coerce.number().int().min(0, 'Enter a valid age').max(150, 'Enter a valid age'),
+    hospitalId: z.string().min(1, 'Please select a hospital'),
     password: passwordSchema,
     confirmPassword: z.string(),
   })
@@ -27,12 +29,11 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
-export const forgotPasswordSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-});
-
-export const resetPasswordSchema = z
+/** Creates a new Hospital and its owning Admin account together. */
+export const registerAdminSchema = z
   .object({
+    hospitalName: z.string().min(1, 'Hospital name is required'),
+    email: z.string().email('Enter a valid email address'),
     password: passwordSchema,
     confirmPassword: z.string(),
   })
@@ -43,5 +44,4 @@ export const resetPasswordSchema = z
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type RegisterAdminInput = z.infer<typeof registerAdminSchema>;

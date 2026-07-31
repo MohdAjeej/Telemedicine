@@ -1,60 +1,103 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app';
-import { HospitalModel } from '../hospital/hospital.model';
 
 const app = createApp();
-
-async function registerAndLogin(role: 'patient' | 'doctor', email: string) {
-  await request(app).post('/api/v1/auth/register').send({
-    email,
-    password: 'Password123',
-    firstName: 'Test',
-    lastName: role,
-    role,
-  });
-
-  const login = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email, password: 'Password123' });
-
-  return login.body.data.accessToken as string;
-}
 
 describe('Appointment booking flow', () => {
   let hospitalId: string;
   let doctorProfileId: string;
+  let patientId: string;
   let patientToken: string;
   let doctorToken: string;
+  let healthOfficerToken: string;
 
   beforeAll(async () => {
-    const hospital = await HospitalModel.create({
-      name: 'Test General Hospital',
-      registrationNumber: `REG-${Date.now()}`,
-      type: 'hospital',
-      contact: { phone: '555-0100', email: 'contact@testhospital.example' },
-    });
-    hospitalId = hospital._id.toString();
+    const adminRegister = await request(app)
+      .post('/api/v1/auth/register-admin')
+      .send({
+        hospitalName: 'Test General Hospital',
+        email: `admin.${Date.now()}@example.com`,
+        password: 'Password123',
+      });
+    const adminToken = adminRegister.body.data.accessToken;
 
-    doctorToken = await registerAndLogin('doctor', `doctor.${Date.now()}@example.com`);
-    const doctorProfileResponse = await request(app)
-      .patch('/api/v1/doctors/me')
-      .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ hospitalId, specialization: ['General Medicine'], consultationFee: 50 });
-    doctorProfileId = doctorProfileResponse.body.data._id;
+    const adminMe = await request(app)
+      .get('/api/v1/admin/me')
+      .set('Authorization', `Bearer ${adminToken}`);
+    hospitalId = adminMe.body.data.hospitalId;
 
-    patientToken = await registerAndLogin('patient', `patient.${Date.now()}@example.com`);
+    const doctorEmail = `doctor.${Date.now()}@example.com`;
+    const createDoctorResponse = await request(app)
+      .post('/api/v1/doctors')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: doctorEmail,
+        password: 'Password123',
+        firstName: 'Test',
+        lastName: 'Doctor',
+        specialization: ['General Medicine'],
+      });
+    doctorProfileId = createDoctorResponse.body.data._id;
+
+    const doctorLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: doctorEmail, password: 'Password123' });
+    doctorToken = doctorLogin.body.data.accessToken;
+
+    const officerEmail = `officer.${Date.now()}@example.com`;
     await request(app)
-      .patch('/api/v1/patients/me')
-      .set('Authorization', `Bearer ${patientToken}`)
-      .send({ gender: 'female' });
+      .post('/api/v1/health-officers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: officerEmail,
+        password: 'Password123',
+        firstName: 'Test',
+        lastName: 'Officer',
+      });
+
+    const officerLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: officerEmail, password: 'Password123' });
+    healthOfficerToken = officerLogin.body.data.accessToken;
+
+    const patientRegister = await request(app).post('/api/v1/auth/register').send({
+      email: `patient.${Date.now()}@example.com`,
+      password: 'Password123',
+      firstName: 'Test',
+      lastName: 'Patient',
+      age: 29,
+      hospitalId,
+    });
+    patientToken = patientRegister.body.data.accessToken;
+
+    const patientMe = await request(app)
+      .get('/api/v1/patients/me')
+      .set('Authorization', `Bearer ${patientToken}`);
+    patientId = patientMe.body.data._id;
   });
 
-  it('lets a patient book a pending appointment with an available doctor', async () => {
+  it('rejects a patient trying to book an appointment for themselves', async () => {
     const response = await request(app)
       .post('/api/v1/appointments')
       .set('Authorization', `Bearer ${patientToken}`)
       .send({
+        doctorId: doctorProfileId,
+        hospitalId,
+        scheduledStart: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        type: 'in_person',
+        reasonForVisit: 'Annual checkup',
+      });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('lets a health officer book a pending appointment on behalf of a patient', async () => {
+    const response = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({
+        patientId,
         doctorId: doctorProfileId,
         hospitalId,
         scheduledStart: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -69,8 +112,9 @@ describe('Appointment booking flow', () => {
   it('rejects a patient trying to confirm their own appointment', async () => {
     const bookResponse = await request(app)
       .post('/api/v1/appointments')
-      .set('Authorization', `Bearer ${patientToken}`)
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
       .send({
+        patientId,
         doctorId: doctorProfileId,
         hospitalId,
         scheduledStart: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
@@ -89,8 +133,9 @@ describe('Appointment booking flow', () => {
   it('lets the doctor confirm a pending appointment', async () => {
     const bookResponse = await request(app)
       .post('/api/v1/appointments')
-      .set('Authorization', `Bearer ${patientToken}`)
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
       .send({
+        patientId,
         doctorId: doctorProfileId,
         hospitalId,
         scheduledStart: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
@@ -112,14 +157,14 @@ describe('Appointment booking flow', () => {
 
     const first = await request(app)
       .post('/api/v1/appointments')
-      .set('Authorization', `Bearer ${patientToken}`)
-      .send({ doctorId: doctorProfileId, hospitalId, scheduledStart, type: 'in_person', reasonForVisit: 'A' });
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({ patientId, doctorId: doctorProfileId, hospitalId, scheduledStart, type: 'in_person', reasonForVisit: 'A' });
     expect(first.status).toBe(201);
 
     const second = await request(app)
       .post('/api/v1/appointments')
-      .set('Authorization', `Bearer ${patientToken}`)
-      .send({ doctorId: doctorProfileId, hospitalId, scheduledStart, type: 'in_person', reasonForVisit: 'B' });
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({ patientId, doctorId: doctorProfileId, hospitalId, scheduledStart, type: 'in_person', reasonForVisit: 'B' });
     expect(second.status).toBe(409);
   });
 });

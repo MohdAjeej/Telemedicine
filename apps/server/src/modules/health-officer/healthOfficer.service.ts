@@ -8,18 +8,22 @@ import type {
 } from './healthOfficer.types';
 
 export const healthOfficerService = {
-  async create(input: CreateHealthOfficerInput) {
+  /** Admin-only. hospitalId is always the creating admin's own hospital, never chosen by the caller. */
+  async create(input: CreateHealthOfficerInput, hospitalId: string) {
     const user = await authService.provisionAccount({
       email: input.email,
+      password: input.password,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
       role: 'health_officer',
+      hospitalId,
     });
 
     try {
-      return await healthOfficerRepository.updateByUserId(user.id, {
-        hospitalId: input.hospitalId,
+      return await healthOfficerRepository.create({
+        userId: user.id,
+        hospitalId,
         employeeId: input.employeeId,
       });
     } catch (error) {

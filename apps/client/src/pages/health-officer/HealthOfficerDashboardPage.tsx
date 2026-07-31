@@ -1,4 +1,5 @@
-import { Grid } from '@mui/material';
+import { Grid, Button, Stack } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
 import { DataTable, PageHeader, StatCard, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
@@ -13,6 +14,7 @@ function participantName(entity: unknown): string {
 }
 
 export default function HealthOfficerDashboardPage() {
+  const navigate = useNavigate();
   const { data: queue, isFetching } = useListAppointmentsQuery({ limit: 20, status: 'pending' });
   const { data: confirmedToday } = useListAppointmentsQuery({ limit: 1, status: 'confirmed' });
 
@@ -25,7 +27,20 @@ export default function HealthOfficerDashboardPage() {
 
   return (
     <>
-      <PageHeader title="Health Officer Dashboard" subtitle="Clinic queue and intake" />
+      <PageHeader
+        title="Health Officer Dashboard"
+        subtitle="Clinic queue and intake"
+        actions={
+          <Stack direction="row" spacing={2}>
+            <Button variant="outlined" onClick={() => navigate('/app/health-officer/register-patient')}>
+              Register Patient
+            </Button>
+            <Button variant="contained" onClick={() => navigate('/app/health-officer/intake/vitals')}>
+              Record Intake Vitals
+            </Button>
+          </Stack>
+        }
+      />
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard label="Pending queue" value={queue?.total ?? 0} icon={<PendingActionsOutlinedIcon />} color="warning" />

@@ -1,4 +1,5 @@
-import { Grid, Stack } from '@mui/material';
+import { Grid, Stack, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
 import { DataTable, PageHeader, StatCard, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
@@ -13,6 +14,7 @@ function patientName(entity: unknown): string {
 }
 
 export default function DoctorDashboardPage() {
+  const navigate = useNavigate();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
@@ -30,11 +32,47 @@ export default function DoctorDashboardPage() {
     { key: 'patient', header: 'Patient', render: (row) => patientName(row.patientId) },
     { key: 'reason', header: 'Reason', render: (row) => row.reasonForVisit },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => (
+        <Stack direction="row" spacing={1}>
+          {row.status === 'confirmed' && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => navigate(`/app/doctor/consultations/start?appointmentId=${row._id}`)}
+            >
+              Start
+            </Button>
+          )}
+          {row.type === 'video' && row.status === 'confirmed' && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => navigate(`/app/doctor/video/${row._id}`)}
+            >
+              Join Video
+            </Button>
+          )}
+        </Stack>
+      ),
+    },
   ];
 
   return (
     <>
-      <PageHeader title="Doctor Dashboard" subtitle="Today's schedule at a glance" />
+      <PageHeader
+        title="Doctor Dashboard"
+        subtitle="Today's schedule at a glance"
+        actions={
+          <Stack direction="row" spacing={2}>
+            <Button variant="outlined" onClick={() => navigate('/app/doctor/consultations')}>
+              View All Consultations
+            </Button>
+          </Stack>
+        }
+      />
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard label="Today's appointments" value={today?.total ?? 0} icon={<EventNoteOutlinedIcon />} />
@@ -49,7 +87,8 @@ export default function DoctorDashboardPage() {
           rows={today?.items ?? []}
           getRowId={(row) => row._id}
           loading={isFetching}
-          emptyTitle="No appointments scheduled today"
+          emptyTitle="No appointments today"
+          emptyDescription="Your schedule is clear for today."
         />
       </Stack>
     </>

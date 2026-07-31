@@ -1,4 +1,4 @@
-import type { AuthTokens, LoginPayload, RegisterPayload, User } from '@telemedicine/types';
+import type { LoginPayload, RegisterAdminPayload, RegisterPayload, User } from '@telemedicine/types';
 import { baseApi } from '../../store/api/baseApi';
 
 export const authApi = baseApi.injectEndpoints({
@@ -9,34 +9,37 @@ export const authApi = baseApi.injectEndpoints({
         response.data,
       invalidatesTags: ['User'],
     }),
-    register: builder.mutation<{ user: User }, RegisterPayload>({
+    /** Patient self-registration — the server logs the patient in immediately (no email verification step exists). */
+    register: builder.mutation<{ user: User; accessToken: string }, RegisterPayload>({
       query: (body) => ({ url: '/auth/register', method: 'POST', body }),
-      transformResponse: (response: { data: { user: User } }) => response.data,
+      transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
+      invalidatesTags: ['User'],
     }),
-    refresh: builder.mutation<AuthTokens, void>({
+    /** Admin self-registration — creates the Hospital in the same step, then logs the admin in immediately. */
+    registerAdmin: builder.mutation<{ user: User; accessToken: string }, RegisterAdminPayload>({
+      query: (body) => ({ url: '/auth/register-admin', method: 'POST', body }),
+      transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
+      invalidatesTags: ['User'],
+    }),
+    refresh: builder.mutation<{ user: User; accessToken: string }, void>({
       query: () => ({ url: '/auth/refresh', method: 'POST' }),
-      transformResponse: (response: { data: AuthTokens }) => response.data,
+      transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
     }),
     logout: builder.mutation<void, void>({
       query: () => ({ url: '/auth/logout', method: 'POST' }),
-    }),
-    forgotPassword: builder.mutation<void, { email: string }>({
-      query: (body) => ({ url: '/auth/forgot-password', method: 'POST', body }),
-    }),
-    resetPassword: builder.mutation<void, { token: string; password: string }>({
-      query: ({ token, password }) => ({
-        url: `/auth/reset-password/${token}`,
-        method: 'POST',
-        body: { password },
-      }),
-    }),
-    verifyEmail: builder.mutation<void, { token: string }>({
-      query: ({ token }) => ({ url: `/auth/verify-email/${token}`, method: 'POST' }),
     }),
     getMe: builder.query<User, void>({
       query: () => '/auth/me',
       transformResponse: (response: { data: User }) => response.data,
       providesTags: ['User'],
+    }),
+    updateMe: builder.mutation<User, { firstName?: string; lastName?: string; phone?: string }>({
+      query: (body) => ({ url: '/auth/me', method: 'PATCH', body }),
+      transformResponse: (response: { data: User }) => response.data,
+      invalidatesTags: ['User'],
+    }),
+    changePassword: builder.mutation<void, { currentPassword: string; newPassword: string }>({
+      query: (body) => ({ url: '/auth/password', method: 'PATCH', body }),
     }),
   }),
 });
@@ -44,10 +47,10 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useRegisterAdminMutation,
   useRefreshMutation,
   useLogoutMutation,
-  useForgotPasswordMutation,
-  useResetPasswordMutation,
-  useVerifyEmailMutation,
   useGetMeQuery,
+  useUpdateMeMutation,
+  useChangePasswordMutation,
 } = authApi;

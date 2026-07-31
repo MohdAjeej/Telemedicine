@@ -4,18 +4,22 @@ import { doctorRepository } from './doctor.repository';
 import type { CreateDoctorInput, ListDoctorsQuery, UpdateDoctorProfileInput } from './doctor.types';
 
 export const doctorService = {
-  async create(input: CreateDoctorInput) {
+  /** Admin-only. hospitalId is always the creating admin's own hospital, never chosen by the caller. */
+  async create(input: CreateDoctorInput, hospitalId: string) {
     const user = await authService.provisionAccount({
       email: input.email,
+      password: input.password,
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone,
       role: 'doctor',
+      hospitalId,
     });
 
     try {
-      return await doctorRepository.updateByUserId(user.id, {
-        hospitalId: input.hospitalId,
+      return await doctorRepository.create({
+        userId: user.id,
+        hospitalId,
         specialization: input.specialization,
         licenseNumber: input.licenseNumber,
       });

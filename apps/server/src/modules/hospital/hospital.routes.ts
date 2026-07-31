@@ -12,13 +12,15 @@ import {
 
 const router = Router();
 
-router.use(authenticate);
-
+// Deliberately public (no authenticate): the Patient registration form needs
+// to populate its Hospital dropdown before the visitor has an account.
+// Hospital directory info (name/type/contact) isn't sensitive.
 router.get('/', listHospitalsValidation, validateRequest, hospitalController.list);
 router.get('/:id', hospitalIdValidation, validateRequest, hospitalController.getById);
 
 router.post(
   '/',
+  authenticate,
   authorize('admin'),
   createHospitalValidation,
   validateRequest,
@@ -26,11 +28,19 @@ router.post(
 );
 router.patch(
   '/:id',
+  authenticate,
   authorize('admin'),
   updateHospitalValidation,
   validateRequest,
   hospitalController.update,
 );
-router.delete('/:id', authorize('admin'), hospitalIdValidation, validateRequest, hospitalController.remove);
+router.delete(
+  '/:id',
+  authenticate,
+  authorize('admin'),
+  hospitalIdValidation,
+  validateRequest,
+  hospitalController.remove,
+);
 
 export default router;

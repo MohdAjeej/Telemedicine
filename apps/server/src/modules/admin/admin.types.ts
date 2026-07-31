@@ -8,6 +8,7 @@ export interface CreateAdminInput {
 }
 
 export interface UpdateAdminProfileInput {
+  hospitalId?: string;
   permissions?: string[];
   department?: string;
 }

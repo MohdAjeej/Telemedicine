@@ -7,6 +7,7 @@ export interface ConsultationDocument {
   appointmentId: Schema.Types.ObjectId;
   doctorId: Schema.Types.ObjectId;
   patientId: Schema.Types.ObjectId;
+  hospitalId: Schema.Types.ObjectId;
   startedAt: Date;
   endedAt?: Date;
   chiefComplaint?: string;
@@ -27,6 +28,7 @@ const consultationSchema = new Schema<ConsultationDocument>(
     appointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', required: true, unique: true },
     doctorId: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true, index: true },
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true, index: true },
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     startedAt: { type: Date, required: true },
     endedAt: { type: Date },
     chiefComplaint: { type: String },

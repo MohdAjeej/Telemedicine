@@ -1,18 +1,21 @@
-import type { BaseEntity } from './common.types';
-
 export type UserRole = 'admin' | 'doctor' | 'health_officer' | 'patient';
-export type UserStatus = 'pending' | 'active' | 'suspended';
+export type UserStatus = 'active' | 'suspended';
 
-export interface User extends BaseEntity {
+/**
+ * Matches the server's `SanitizedUser` DTO exactly (apps/server/.../auth.types.ts)
+ * — every `/auth/*` endpoint returns this shape, not a raw Mongo document, so
+ * there is no `_id`/`createdAt`/`updatedAt` here (unlike most other shared
+ * types, which do mirror BaseEntity/raw documents).
+ */
+export interface User {
+  id: string;
   email: string;
   role: UserRole;
   firstName: string;
   lastName: string;
   phone?: string;
   avatarUrl?: string;
-  isEmailVerified: boolean;
   status: UserStatus;
-  lastLoginAt?: string;
 }
 
 export interface AuthTokens {
@@ -24,11 +27,20 @@ export interface LoginPayload {
   password: string;
 }
 
+/** Public self-registration is patient-only. */
 export interface RegisterPayload {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
   phone?: string;
-  role: Extract<UserRole, 'patient' | 'doctor' | 'health_officer'>;
+  age: number;
+  hospitalId: string;
+}
+
+/** Creates a new Hospital and its owning Admin account together. */
+export interface RegisterAdminPayload {
+  hospitalName: string;
+  email: string;
+  password: string;
 }

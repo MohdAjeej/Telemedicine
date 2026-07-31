@@ -17,6 +17,7 @@ async function upsertUser(input: {
   firstName: string;
   lastName: string;
   role: 'admin' | 'doctor' | 'health_officer' | 'patient';
+  hospitalId: unknown;
 }) {
   const passwordHash = await hashValue(SEED_PASSWORD);
   return UserModel.findOneAndUpdate(
@@ -25,6 +26,7 @@ async function upsertUser(input: {
       email: input.email,
       passwordHash,
       role: input.role,
+      hospitalId: input.hospitalId,
       firstName: input.firstName,
       lastName: input.lastName,
       isEmailVerified: true,
@@ -57,10 +59,16 @@ async function seed(): Promise<void> {
     firstName: 'Alice',
     lastName: 'Admin',
     role: 'admin',
+    hospitalId: hospital._id,
   });
   await AdminModel.findOneAndUpdate(
     { userId: adminUser._id },
-    { userId: adminUser._id, permissions: ['*'], department: 'Platform Operations' },
+    {
+      userId: adminUser._id,
+      hospitalId: hospital._id,
+      permissions: ['*'],
+      department: 'Platform Operations',
+    },
     { upsert: true },
   );
 
@@ -69,6 +77,7 @@ async function seed(): Promise<void> {
     firstName: 'David',
     lastName: 'Carter',
     role: 'doctor',
+    hospitalId: hospital._id,
   });
   const doctor = await DoctorModel.findOneAndUpdate(
     { userId: doctorUser._id },
@@ -91,6 +100,7 @@ async function seed(): Promise<void> {
     firstName: 'Hana',
     lastName: 'Ortiz',
     role: 'health_officer',
+    hospitalId: hospital._id,
   });
   await HealthOfficerModel.findOneAndUpdate(
     { userId: healthOfficerUser._id },
@@ -108,11 +118,14 @@ async function seed(): Promise<void> {
     firstName: 'Priya',
     lastName: 'Sharma',
     role: 'patient',
+    hospitalId: hospital._id,
   });
   const patient = await PatientModel.findOneAndUpdate(
     { userId: patientUser._id },
     {
       userId: patientUser._id,
+      hospitalId: hospital._id,
+      age: 32,
       gender: 'female',
       bloodGroup: 'O+',
       allergies: ['Penicillin'],
