@@ -31,25 +31,28 @@ export function FormMultiSelect<TFieldValues extends FieldValues>({
             }
           : undefined
       }
-      render={({ field: { onChange, value, ref, ...field }, fieldState }) => (
-        <Autocomplete
-          multiple
-          options={options as string[]}
-          value={(value as string[]) ?? []}
-          onChange={(_event, newValue) => onChange(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              {...field}
-              inputRef={ref}
-              label={label}
-              required={required}
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message ?? helperText}
-            />
-          )}
-        />
-      )}
+      render={({ field: { onChange, value, ref, ...field }, fieldState }) => {
+        const selected = (value as string[]) ?? [];
+        return (
+          <Autocomplete
+            multiple
+            options={options as string[]}
+            value={selected}
+            onChange={(_event, newValue) => onChange(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                {...field}
+                inputRef={ref}
+                label={label}
+                required={required && selected.length === 0}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message ?? helperText}
+              />
+            )}
+          />
+        );
+      }}
     />
   );
 }
