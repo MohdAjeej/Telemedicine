@@ -3,6 +3,7 @@ import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import VideoCameraFrontOutlinedIcon from '@mui/icons-material/VideoCameraFrontOutlined';
 import MedicationOutlinedIcon from '@mui/icons-material/MedicationOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import DashboardShell, { type DashboardNavItem } from '../components/layout/DashboardShell';
 
@@ -12,6 +13,7 @@ const navItems: DashboardNavItem[] = [
   { label: 'My Patients', path: '/app/doctor/patients', icon: <PeopleAltOutlinedIcon /> },
   { label: 'Video Consultation', path: '/app/doctor/consultations', icon: <VideoCameraFrontOutlinedIcon /> },
   { label: 'Prescriptions', path: '/app/doctor/prescriptions', icon: <MedicationOutlinedIcon /> },
+  { label: 'Test Results', path: '/app/doctor/lab-reports', icon: <ScienceOutlinedIcon /> },
   { label: 'Profile', path: '/app/doctor/profile', icon: <AccountCircleOutlinedIcon /> },
 ];
 

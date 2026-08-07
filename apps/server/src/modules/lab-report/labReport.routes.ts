@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { authorize } from '../../middlewares/role.middleware';
 import { validateRequest } from '../../middlewares/validate.middleware';
+import { upload } from '../../config/multer.config';
 import { labReportController } from './labReport.controller';
 import {
   labReportIdValidation,
@@ -29,6 +30,14 @@ router.patch(
   updateLabReportValidation,
   validateRequest,
   labReportController.updateResult,
+);
+router.post(
+  '/:id/report',
+  authorize('doctor', 'health_officer', 'admin'),
+  labReportIdValidation,
+  validateRequest,
+  upload.single('report'),
+  labReportController.uploadReport,
 );
 router.delete(
   '/:id',

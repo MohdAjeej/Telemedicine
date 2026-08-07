@@ -11,6 +11,7 @@ import StartConsultationPage from '../pages/doctor/StartConsultationPage';
 import CreatePrescriptionPage from '../pages/doctor/CreatePrescriptionPage';
 import DoctorPrescriptionsPage from '../features/prescription/pages/DoctorPrescriptionsPage';
 import RequestLabTestPage from '../pages/doctor/RequestLabTestPage';
+import LabReportsPage from '../pages/doctor/LabReportsPage';
 
 export const doctorRoutes: RouteObject[] = [
   { index: true, element: <DoctorDashboardPage /> },
@@ -21,6 +22,7 @@ export const doctorRoutes: RouteObject[] = [
   { path: 'consultations/:id', element: <ConsultationPage /> },
   { path: 'prescriptions', element: <DoctorPrescriptionsPage /> },
   { path: 'prescriptions/create', element: <CreatePrescriptionPage /> },
+  { path: 'lab-reports', element: <LabReportsPage /> },
   { path: 'lab-reports/request', element: <RequestLabTestPage /> },
   { path: 'video/:appointmentId', element: <VideoConsultationPage /> },
   { path: 'video-test/:appointmentId', element: <SimpleVideoTestPage /> },

@@ -45,6 +45,17 @@ export const authController = {
     sendSuccess(res, { user, accessToken: tokens.accessToken }, 'Login successful');
   }),
 
+  adminHandoff: asyncHandler(async (req: Request, res: Response) => {
+    const ticket = await authService.createAdminHandoffTicket(req.user!.id);
+    sendSuccess(res, { ticket }, 'Handoff ticket issued');
+  }),
+
+  adminHandoffExchange: asyncHandler(async (req: Request, res: Response) => {
+    const { user, tokens } = await authService.exchangeAdminHandoffTicket(req.body.ticket, requestMeta(req));
+    setRefreshCookie(res, tokens.refreshToken);
+    sendSuccess(res, { user, accessToken: tokens.accessToken }, 'Login successful');
+  }),
+
   refresh: asyncHandler(async (req: Request, res: Response) => {
     const refreshToken = req.cookies?.[env.REFRESH_COOKIE_NAME];
     if (!refreshToken) {

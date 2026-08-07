@@ -5,6 +5,7 @@ export const messageApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     startConversation: builder.mutation<Conversation, { otherUserId: string }>({
       query: (body) => ({ url: '/messages/conversations', method: 'POST', body }),
+      transformResponse: (response: { data: Conversation }) => response.data,
       invalidatesTags: [{ type: 'Conversation', id: 'LIST' }],
     }),
     listMessages: builder.query<Message[], string>({
@@ -18,6 +19,7 @@ export const messageApi = baseApi.injectEndpoints({
         method: 'POST',
         body: { content },
       }),
+      transformResponse: (response: { data: Message }) => response.data,
       invalidatesTags: (_result, _error, { conversationId }) => [{ type: 'Message', id: conversationId }],
     }),
   }),

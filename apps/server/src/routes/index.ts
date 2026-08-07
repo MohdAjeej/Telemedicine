@@ -19,6 +19,7 @@ import invoiceRoutes from '../modules/invoice/invoice.routes';
 import paymentRoutes from '../modules/payment/payment.routes';
 import auditLogRoutes from '../modules/audit-log/auditLog.routes';
 import videoRoutes from '../modules/video/video.routes';
+import recordingRoutes from '../modules/recording/recording.routes';
 import settingsRoutes from '../modules/settings/settings.routes';
 
 const router = Router();
@@ -43,6 +44,7 @@ router.use('/invoices', invoiceRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/audit-logs', auditLogRoutes);
 router.use('/video', videoRoutes);
+router.use('/recordings', recordingRoutes);
 router.use('/settings', settingsRoutes);
 
 export default router;

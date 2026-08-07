@@ -38,6 +38,15 @@ export const labReportApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/lab-reports/${id}`, method: 'DELETE' }),
       invalidatesTags: (_result, _error, id) => [{ type: 'LabReport', id }, 'LabReport'],
     }),
+    uploadLabReportFile: builder.mutation<LabReport, { id: string; file: File }>({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('report', file);
+        return { url: `/lab-reports/${id}/report`, method: 'POST', body: formData };
+      },
+      transformResponse: (response: { data: LabReport }) => response.data,
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'LabReport', id }, 'LabReport'],
+    }),
   }),
 });
 
@@ -47,4 +56,5 @@ export const {
   useRequestLabReportMutation,
   useUpdateLabReportMutation,
   useDeleteLabReportMutation,
+  useUploadLabReportFileMutation,
 } = labReportApi;

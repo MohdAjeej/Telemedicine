@@ -8,14 +8,17 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { loginSchema, type LoginInput } from '@telemedicine/validation';
 import { ROLE_DASHBOARD_PATH } from '@telemedicine/constants';
 import { FormTextField } from '@telemedicine/ui';
-import { useLoginMutation } from '../authApi';
+import { useLoginMutation, useRequestAdminHandoffMutation } from '../authApi';
 import { useAppDispatch } from '../../../app/hooks';
 import { setCredentials } from '../authSlice';
+
+const ADMIN_CONSOLE_URL = import.meta.env.VITE_ADMIN_CONSOLE_URL ?? 'http://localhost:5174';
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [login, { isLoading }] = useLoginMutation();
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [requestAdminHandoff, { isLoading: isHandingOff }] = useRequestAdminHandoffMutation();
   const [formError, setFormError] = useState<string | null>(null);
 
   const { control, handleSubmit } = useForm<LoginInput>({
@@ -23,10 +26,24 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
+  // Admins sign in here too — this is the one login page for every role. The Admin
+  // Console is a separate deployed app with its own session, so instead of storing
+  // this token locally (it has no admin routes to use it in) or making the admin
+  // type their password again there, we exchange it for a one-time ticket the
+  // console redeems for its own real session — one password entry, total.
   const onSubmit = async (values: LoginInput) => {
     setFormError(null);
     try {
       const { user, accessToken } = await login(values).unwrap();
+
+      if (user.role === 'admin') {
+        const { ticket } = await requestAdminHandoff(accessToken).unwrap();
+        const url = new URL('/handoff', ADMIN_CONSOLE_URL);
+        url.searchParams.set('ticket', ticket);
+        window.location.href = url.toString();
+        return;
+      }
+
       dispatch(setCredentials({ user, accessToken }));
       navigate(ROLE_DASHBOARD_PATH[user.role]);
     } catch (error) {
@@ -67,10 +84,10 @@ export default function LoginPage() {
         type="submit"
         variant="contained"
         size="large"
-        disabled={isLoading}
+        disabled={isLoggingIn || isHandingOff}
         endIcon={<ArrowForwardRoundedIcon />}
       >
-        Sign in
+        {isHandingOff ? 'Taking you to the Admin Console…' : 'Sign in'}
       </Button>
       <Typography variant="body2" color="text.secondary" textAlign="center">
         Don&apos;t have an account?{' '}

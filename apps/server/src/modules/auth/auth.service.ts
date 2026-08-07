@@ -3,7 +3,13 @@ import ms from 'ms';
 import type { Role } from '@telemedicine/constants';
 import { ApiError } from '../../helpers/ApiError';
 import { compareValue, hashToken, hashValue } from '../../utils/hash';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
+import {
+  signAccessToken,
+  signHandoffTicket,
+  signRefreshToken,
+  verifyHandoffTicket,
+  verifyRefreshToken,
+} from '../../utils/jwt';
 import { recordAuditLog } from '../audit-log/auditLog.service';
 import { env } from '../../config/env';
 import { hospitalRepository } from '../hospital/hospital.repository';
@@ -104,6 +110,21 @@ async function issueTokenPair(
   });
 
   return { accessToken, refreshToken, jti };
+}
+
+/**
+ * Tracks consumed admin-handoff ticket jtis so each ticket can only be exchanged
+ * once, even though it's a stateless signed JWT. Tickets expire in ~60s (see
+ * ADMIN_HANDOFF_EXPIRES_IN), so this process-local set never grows large — entries
+ * are swept out once their own expiry has passed rather than kept forever.
+ */
+const consumedHandoffTickets = new Map<string, number>();
+
+function sweepConsumedHandoffTickets(): void {
+  const now = Date.now();
+  for (const [jti, expiresAt] of consumedHandoffTickets) {
+    if (expiresAt <= now) consumedHandoffTickets.delete(jti);
+  }
 }
 
 export const authService = {
@@ -293,6 +314,67 @@ export const authService = {
     );
 
     await authRepository.touchLastLogin(user._id.toString());
+
+    await recordAuditLog({
+      actorId: user._id.toString(),
+      hospitalId,
+      action: 'user.login',
+      entityType: 'User',
+      entityId: user._id.toString(),
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return { user: sanitizeUser(user), tokens };
+  },
+
+  /**
+   * Issues a short-lived, single-use ticket letting an already-authenticated admin
+   * (verified by the `authenticate` middleware from their just-issued access token)
+   * be handed off to the standalone Admin Console without re-entering a password.
+   */
+  async createAdminHandoffTicket(userId: string): Promise<string> {
+    const user = await authRepository.findUserById(userId);
+    if (!user || user.role !== 'admin') {
+      throw ApiError.forbidden('Only administrators can request an Admin Console handoff');
+    }
+
+    sweepConsumedHandoffTickets();
+    const jti = crypto.randomUUID();
+    return signHandoffTicket({ sub: userId, purpose: 'admin-handoff', jti });
+  },
+
+  /** Exchanges a handoff ticket for a real, full token pair — the Admin Console's own login. */
+  async exchangeAdminHandoffTicket(
+    ticket: string,
+    meta: RequestMeta,
+  ): Promise<{ user: SanitizedUser; tokens: TokenPair }> {
+    let payload;
+    try {
+      payload = verifyHandoffTicket(ticket);
+    } catch {
+      throw ApiError.unauthorized('This sign-in link is invalid or has expired');
+    }
+
+    if (payload.purpose !== 'admin-handoff') {
+      throw ApiError.unauthorized('This sign-in link is invalid or has expired');
+    }
+
+    sweepConsumedHandoffTickets();
+    if (consumedHandoffTickets.has(payload.jti)) {
+      throw ApiError.unauthorized('This sign-in link has already been used');
+    }
+    // Recorded before the account lookup below so the ticket can't be retried in a
+    // race even if that lookup goes on to reject it.
+    consumedHandoffTickets.set(payload.jti, Date.now() + ms(env.ADMIN_HANDOFF_EXPIRES_IN));
+
+    const user = await authRepository.findUserById(payload.sub);
+    if (!user || user.role !== 'admin' || user.status === 'suspended') {
+      throw ApiError.unauthorized('This sign-in link is invalid or has expired');
+    }
+
+    const hospitalId = await resolveHospitalId(user._id.toString(), user.role);
+    const { jti: _jti, ...tokens } = await issueTokenPair(user._id.toString(), user.role, hospitalId, meta);
 
     await recordAuditLog({
       actorId: user._id.toString(),

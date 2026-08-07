@@ -33,6 +33,10 @@ export const loginValidation = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+export const adminHandoffExchangeValidation = [
+  body('ticket').notEmpty().withMessage('Ticket is required'),
+];
+
 export const updateMeValidation = [
   body('firstName').optional().trim().notEmpty().withMessage('First name cannot be empty'),
   body('lastName').optional().trim().notEmpty().withMessage('Last name cannot be empty'),

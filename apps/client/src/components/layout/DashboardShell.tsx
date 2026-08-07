@@ -17,11 +17,13 @@ import {
   Typography,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useLogoutMutation } from '../../features/auth/authApi';
 import { logout as logoutAction } from '../../features/auth/authSlice';
 import NotificationBell from './NotificationBell';
+import { HeaderContentProvider, useHeaderContent } from './HeaderContentContext';
 
 const DRAWER_WIDTH = 260;
 const SIDEBAR_BG = '#1e3a8a';
@@ -42,13 +44,23 @@ export interface DashboardShellProps {
   navItems: DashboardNavItem[];
 }
 
-export default function DashboardShell({ roleLabel, navItems }: DashboardShellProps) {
+export default function DashboardShell(props: DashboardShellProps) {
+  return (
+    <HeaderContentProvider>
+      <DashboardShellInner {...props} />
+    </HeaderContentProvider>
+  );
+}
+
+function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(true);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [logoutMutation] = useLogoutMutation();
+  const { headerContent } = useHeaderContent();
 
   const handleLogout = async () => {
     try {
@@ -102,11 +114,15 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
         position="fixed"
         color="inherit"
         elevation={0}
-        sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+        sx={(theme) => ({
+          width: { md: desktopOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
+          ml: { md: desktopOpen ? `${DRAWER_WIDTH}px` : 0 },
           boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
-        }}
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        })}
       >
         <Toolbar sx={{ gap: 1 }}>
           <IconButton
@@ -116,9 +132,18 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-            {roleLabel}
-          </Typography>
+          <IconButton
+            edge="start"
+            onClick={() => setDesktopOpen((prev) => !prev)}
+            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+          >
+            {desktopOpen ? <MenuOpenIcon /> : <MenuIcon />}
+          </IconButton>
+          {headerContent ?? (
+            <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+              {roleLabel}
+            </Typography>
+          )}
           <NotificationBell />
           <IconButton onClick={(event) => setMenuAnchor(event.currentTarget)}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -140,7 +165,17 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
         </Toolbar>
       </AppBar>
 
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+      <Box
+        component="nav"
+        sx={(theme) => ({
+          width: { md: desktopOpen ? DRAWER_WIDTH : 0 },
+          flexShrink: { md: 0 },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        })}
+      >
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -156,7 +191,7 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', md: 'block' },
+            display: { xs: 'none', md: desktopOpen ? 'block' : 'none' },
             '& .MuiDrawer-paper': {
               width: DRAWER_WIDTH,
               bgcolor: SIDEBAR_BG,
@@ -172,12 +207,16 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
 
       <Box
         component="main"
-        sx={{
+        sx={(theme) => ({
           flexGrow: 1,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { md: desktopOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
           px: { xs: 2, md: 4 },
           py: 4,
-        }}
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        })}
       >
         <Toolbar />
         <Outlet />

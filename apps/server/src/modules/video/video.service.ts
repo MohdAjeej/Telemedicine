@@ -1,4 +1,5 @@
 import { ApiError } from '../../helpers/ApiError';
+import type { HydratedAppointment } from '../appointment/appointment.model';
 import { appointmentRepository } from '../appointment/appointment.repository';
 import { participantUserIds } from '../appointment/appointment.socket';
 
@@ -7,6 +8,22 @@ function healthOfficerUserId(appointment: { healthOfficerId?: unknown }): string
   if (!officer || typeof officer !== 'object') return undefined;
   const userId = officer.userId;
   return typeof userId === 'object' ? String(userId?._id ?? '') || undefined : userId;
+}
+
+/**
+ * Video consultations are Doctor <-> Health Officer only (never Patient) — the
+ * patient's health data is relayed live by the health officer physically
+ * present with them, while the doctor consults remotely. Shared by
+ * `getRoomForAppointment` (joining the live room) and the recording module
+ * (which needs the same membership check but without the "call is currently
+ * live" constraints, since recordings are viewed after the fact too).
+ */
+export function assertVideoParticipant(appointment: HydratedAppointment, requestingUserId: string): void {
+  const { doctorUserId } = participantUserIds(appointment);
+  const officerUserId = healthOfficerUserId(appointment);
+  if (![doctorUserId, officerUserId].includes(requestingUserId)) {
+    throw ApiError.forbidden('You are not a participant in this video consultation');
+  }
 }
 
 export const videoService = {
@@ -31,11 +48,7 @@ export const videoService = {
       throw ApiError.badRequest('This appointment has no assigned health officer; video is unavailable');
     }
 
-    const { doctorUserId } = participantUserIds(appointment);
-    const officerUserId = healthOfficerUserId(appointment);
-    if (![doctorUserId, officerUserId].includes(requestingUserId)) {
-      throw ApiError.forbidden('You are not a participant in this video consultation');
-    }
+    assertVideoParticipant(appointment, requestingUserId);
 
     return { roomId: appointment.videoRoomId, appointmentId };
   },

@@ -53,6 +53,15 @@ export const consultationService = {
         videoRoomId: appointment.type === 'video' ? crypto.randomUUID() : undefined,
       });
     } catch (error) {
+      // The find-then-create above isn't atomic, so two near-simultaneous starts for the
+      // same appointment (React StrictMode's double effect invocation in dev, a doctor
+      // double-clicking, two tabs) can both pass the "existing" check and race to create —
+      // the loser hits the unique index on appointmentId. That's not a real failure, just
+      // a lost race: return the winner's document instead of surfacing a spurious error.
+      if ((error as { code?: number }).code === 11000) {
+        const winner = await consultationRepository.findByAppointmentId(appointmentId);
+        if (winner) return winner;
+      }
       // If it's a Mongoose validation error, provide more details
       if (error instanceof MongooseError.ValidationError) {
         const messages = Object.values(error.errors)

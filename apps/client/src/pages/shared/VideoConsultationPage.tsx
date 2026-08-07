@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
@@ -12,9 +12,13 @@ import {
   TextField,
   Typography,
   Alert,
+  Button,
   CircularProgress,
   Chip,
   Snackbar,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -26,16 +30,31 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import FullscreenRoundedIcon from '@mui/icons-material/FullscreenRounded';
 import FullscreenExitRoundedIcon from '@mui/icons-material/FullscreenExitRounded';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import StopRoundedIcon from '@mui/icons-material/StopRounded';
+import VideoLibraryRoundedIcon from '@mui/icons-material/VideoLibraryRounded';
+import MinimizeRoundedIcon from '@mui/icons-material/MinimizeRounded';
 import { SOCKET_EVENTS } from '@telemedicine/constants';
 import type { LabReport, Message, Vital } from '@telemedicine/types';
-import { DataTable, LoadingSpinner, PageHeader, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
+import {
+  DataTable,
+  LoadingSpinner,
+  PageHeader,
+  ReportViewerDialog,
+  StatusBadge,
+  type DataTableColumn,
+} from '@telemedicine/ui';
 import { format } from 'date-fns';
-import { useWebRTC } from '../../hooks/useWebRTC';
+import { useCallContext } from '../../features/videoCall/useCallContext';
+import { DraggablePanel } from '../../features/videoCall/DraggablePanel';
+import { useHeaderContent } from '../../components/layout/HeaderContentContext';
+import { useCallRecording } from '../../hooks/useCallRecording';
 import { useGetVideoRoomQuery } from '../../features/video/videoApi';
 import { useGetAppointmentQuery } from '../../features/appointment/appointmentApi';
 import { useListVitalsQuery } from '../../features/vital/vitalApi';
 import { useListLabReportsQuery } from '../../features/labReport/labReportApi';
 import { useStartConsultationMutation } from '../../features/consultation/consultationApi';
+import { useListRecordingsQuery, useUploadRecordingMutation } from '../../features/recording/recordingApi';
 import { PrescriptionForm } from '../../features/prescription/components/PrescriptionForm';
 import {
   messageApi,
@@ -44,6 +63,19 @@ import {
   useStartConversationMutation,
 } from '../../features/message/messageApi';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+
+// Reserves room for the absolutely-positioned control bar (mic/camera/chat/record
+// buttons, ~56px IconButtons + 24px padding top and bottom) at the bottom of the
+// video container, so the chat/recordings side panels stop above it instead of
+// the control bar stacking on top of — and hiding — their bottom edge.
+const CONTROL_BAR_HEIGHT = 104;
+
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) return '';
+  const minutes = Math.floor(seconds / 60);
+  const remaining = Math.round(seconds % 60);
+  return `${minutes}:${remaining.toString().padStart(2, '0')}`;
+}
 
 const vitalColumns: DataTableColumn<Vital>[] = [
   { key: 'date', header: 'Date', render: (row) => format(new Date(row.recordedAt), 'MMM d, yyyy p') },
@@ -63,12 +95,32 @@ const vitalColumns: DataTableColumn<Vital>[] = [
   { key: 'symptoms', header: 'Symptoms', render: (row) => row.symptoms ?? '—' },
 ];
 
-const labReportColumns: DataTableColumn<LabReport>[] = [
-  { key: 'test', header: 'Test', render: (row) => row.testType },
-  { key: 'requested', header: 'Requested', render: (row) => format(new Date(row.requestedAt), 'MMM d, yyyy') },
-  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
-  { key: 'summary', header: 'Summary', render: (row) => row.resultSummary ?? '—' },
-];
+function createLabReportColumns(onViewReport: (url: string) => void): DataTableColumn<LabReport>[] {
+  return [
+    {
+      key: 'test',
+      header: 'Test',
+      render: (row) => (
+        <Stack spacing={0.5} alignItems="flex-start">
+          <Typography variant="body2">{row.testType}</Typography>
+          {row.resultFileUrl && (
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => onViewReport(row.resultFileUrl!)}
+              sx={{ minWidth: 0, p: 0 }}
+            >
+              View Report
+            </Button>
+          )}
+        </Stack>
+      ),
+    },
+    { key: 'requested', header: 'Requested', render: (row) => format(new Date(row.requestedAt), 'MMM d, yyyy') },
+    { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+    { key: 'summary', header: 'Summary', render: (row) => row.resultSummary ?? '—' },
+  ];
+}
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '/';
 
@@ -77,12 +129,6 @@ function participantUserId(entity: unknown): string | undefined {
   const userId = populated?.userId;
   if (!userId) return undefined;
   return typeof userId === 'string' ? userId : userId._id;
-}
-
-function participantName(entity: unknown): string {
-  const populated = entity as { userId?: { firstName?: string; lastName?: string } } | undefined;
-  const user = populated?.userId;
-  return user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : 'the other participant';
 }
 
 /** message.senderId comes back populated (a full User) from the list endpoint, not a bare id. */
@@ -105,8 +151,11 @@ export default function VideoConsultationPage() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [callEnded, setCallEnded] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [recordingsPanelOpen, setRecordingsPanelOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { data: room, isLoading, error: roomError } = useGetVideoRoomQuery(appointmentId!, {
     skip: !appointmentId,
@@ -117,9 +166,6 @@ export default function VideoConsultationPage() {
     participantUserId(appointment?.doctorId) === currentUserId
       ? participantUserId(appointment?.healthOfficerId)
       : participantUserId(appointment?.doctorId);
-  const otherName = participantUserId(appointment?.doctorId) === currentUserId
-    ? participantName(appointment?.healthOfficerId)
-    : participantName(appointment?.doctorId);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const patientInfo = appointment?.patientId as any;
@@ -128,6 +174,10 @@ export default function VideoConsultationPage() {
     : 'Unknown Patient';
   const patientId: string | undefined = patientInfo?._id;
   const showDoctorPanel = currentUserRole === 'doctor';
+  // Video calls are Doctor <-> Health Officer only (see videoService), so this
+  // is always true here in practice — kept explicit so the record button's
+  // visibility is self-documenting rather than relying on routing alone.
+  const canRecord = currentUserRole === 'doctor' || currentUserRole === 'health_officer';
 
   const { data: vitals = [], isFetching: isFetchingVitals } = useListVitalsQuery(
     { patientId },
@@ -138,7 +188,51 @@ export default function VideoConsultationPage() {
     { skip: !patientId || !showDoctorPanel },
   );
 
+  const [reportViewerUrl, setReportViewerUrl] = useState<string | null>(null);
+  const labReportColumns = useMemo(() => createLabReportColumns(setReportViewerUrl), []);
+
   const [rightTab, setRightTab] = useState<'vitals' | 'testResults' | 'prescription'>('vitals');
+  const { setHeaderContent } = useHeaderContent();
+
+  // Renders the patient name + tabs directly inside the top app bar — one row, no
+  // separate header strip below it — instead of as its own header in the right panel.
+  useEffect(() => {
+    if (!showDoctorPanel) {
+      setHeaderContent(null);
+      return;
+    }
+    setHeaderContent(
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        justifyContent="flex-end"
+        sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}
+      >
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          noWrap
+          sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0 }}
+        >
+          {patientName}
+        </Typography>
+        <Tabs
+          value={rightTab}
+          onChange={(_event, value) => setRightTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ minHeight: 0, '& .MuiTab-root': { minHeight: 48, py: 0 } }}
+        >
+          <Tab label="Vitals" value="vitals" />
+          <Tab label="Test Results" value="testResults" />
+          <Tab label="Prescription" value="prescription" />
+        </Tabs>
+      </Stack>,
+    );
+    return () => setHeaderContent(null);
+  }, [showDoctorPanel, patientName, rightTab, setHeaderContent]);
+
   const [startConsultation] = useStartConsultationMutation();
   const [consultationId, setConsultationId] = useState<string | null>(null);
   const [consultationError, setConsultationError] = useState<string | null>(null);
@@ -166,17 +260,26 @@ export default function VideoConsultationPage() {
 
   const [startConversation] = useStartConversationMutation();
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatSetupError, setChatSetupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!otherUserId) return;
     let cancelled = false;
+    setChatSetupError(null);
     startConversation({ otherUserId })
       .unwrap()
       .then((conversation) => {
-        if (!cancelled) setConversationId(conversation._id);
+        if (cancelled) return;
+        if (!conversation?._id) {
+          setChatSetupError('Chat is unavailable right now. Please rejoin the call.');
+          return;
+        }
+        setConversationId(conversation._id);
       })
-      .catch(() => {
-        /* chat is a convenience layer on top of the call; ignore failures silently */
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to start chat conversation', err);
+        setChatSetupError('Chat is unavailable right now. Please rejoin the call.');
       });
     return () => {
       cancelled = true;
@@ -233,24 +336,46 @@ export default function VideoConsultationPage() {
     }
   };
 
+  // Holds the recording hook's stopRecording so the call-ended effect below
+  // can still trigger a stop when the peer disconnects.
+  const stopRecordingRef = useRef<(() => void) | null>(null);
+
+  // The live WebRTC connection lives in CallProvider (mounted at the app root), not
+  // in this page — that's what lets "minimize" navigate elsewhere in the app without
+  // tearing down the call. This page just starts/attaches to it and renders its state.
   const {
+    activeCall,
     localStream,
     remoteStream,
     isAudioEnabled,
     isVideoEnabled,
     connectionState,
     error: webrtcError,
+    callEnded: contextCallEnded,
+    startCall,
+    minimize,
+    leaveCall,
     toggleAudio,
     toggleVideo,
-    endCall,
-  } = useWebRTC({
-    roomId: room?.roomId || '',
-    accessToken,
-    onCallEnded: () => {
-      setCallEnded(true);
-      setTimeout(() => navigate(-1), 3000);
-    },
-  });
+  } = useCallContext();
+
+  const isActiveCall = activeCall?.appointmentId === appointmentId;
+
+  // Starts the call the first time this page is opened for this appointment. If the
+  // call is already active (e.g. the user navigated back in after minimizing), this
+  // is a no-op — re-calling startCall would otherwise be harmless but unnecessary.
+  useEffect(() => {
+    if (!appointmentId || !room?.roomId || isActiveCall) return;
+    startCall({ appointmentId, roomId: room.roomId });
+  }, [appointmentId, room?.roomId, isActiveCall, startCall]);
+
+  useEffect(() => {
+    if (!contextCallEnded) return;
+    stopRecordingRef.current?.();
+    setCallEnded(true);
+    const timer = setTimeout(() => navigate(-1), 3000);
+    return () => clearTimeout(timer);
+  }, [contextCallEnded, navigate]);
 
   // Attach local stream to video element
   useEffect(() => {
@@ -266,10 +391,66 @@ export default function VideoConsultationPage() {
     }
   }, [remoteStream]);
 
+  const [uploadRecording] = useUploadRecordingMutation();
+  const [recordingSaved, setRecordingSaved] = useState(false);
+  const [recordingSaveError, setRecordingSaveError] = useState<string | null>(null);
+
+  const handleRecordingComplete = useCallback(
+    (blob: Blob) => {
+      if (!appointmentId) return;
+      uploadRecording({ appointmentId, file: blob })
+        .unwrap()
+        .then(() => setRecordingSaved(true))
+        .catch((err: unknown) => {
+          const data = (err as { data?: { message?: string } } | undefined)?.data;
+          setRecordingSaveError(data?.message ? `Failed to save the recording: ${data.message}` : 'Failed to save the recording.');
+        });
+    },
+    [appointmentId, uploadRecording],
+  );
+
+  const {
+    isRecording,
+    canRecord: canStartRecording,
+    error: recordingError,
+    startRecording,
+    stopRecording,
+  } = useCallRecording(localStream, remoteStream, handleRecordingComplete);
+
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  }, [stopRecording]);
+
+  const { data: recordings = [] } = useListRecordingsQuery(appointmentId!, {
+    skip: !appointmentId || !canRecord,
+  });
+
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  const handleToggleRecordingsPanel = () => {
+    setRecordingsPanelOpen((open) => !open);
+    setChatOpen(false);
+  };
+
   const handleEndCall = () => {
-    endCall();
+    if (isRecording) stopRecording();
+    leaveCall();
     setCallEnded(true);
     setTimeout(() => navigate(-1), 2000);
+  };
+
+  // Recording state (MediaRecorder + chunks) lives in this page's own hook, not in
+  // CallProvider, so it wouldn't survive unmounting on minimize — block minimizing
+  // while a recording is in progress rather than silently losing it.
+  const handleMinimize = () => {
+    if (isRecording) return;
+    minimize();
   };
 
   // Keeps the button icon/state in sync when fullscreen is exited via Esc or
@@ -297,7 +478,7 @@ export default function VideoConsultationPage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !isActiveCall) {
     return (
       <>
         <PageHeader title="Video Consultation" subtitle="Connecting..." />
@@ -330,19 +511,7 @@ export default function VideoConsultationPage() {
 
   return (
     <>
-      <PageHeader
-        title="Video Consultation"
-        subtitle={`Room: ${room?.roomId}`}
-        actions={
-          <Chip
-            label={connectionState === 'connected' ? 'Connected' : connectionState}
-            color={connectionState === 'connected' ? 'success' : 'default'}
-            size="small"
-          />
-        }
-      />
-
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ height: 'calc(100vh - 200px)' }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ height: 'calc(100vh - 130px)' }}>
       <Box
         ref={videoContainerRef}
         sx={{
@@ -367,6 +536,14 @@ export default function VideoConsultationPage() {
             objectFit: 'contain',
             backgroundColor: '#000',
           }}
+        />
+
+        {/* Connection status */}
+        <Chip
+          label={connectionState === 'connected' ? 'Connected' : connectionState}
+          color={connectionState === 'connected' ? 'success' : 'default'}
+          size="small"
+          sx={{ position: 'absolute', top: 16, left: 16 }}
         />
 
         {/* Local Video (picture-in-picture) */}
@@ -415,15 +592,127 @@ export default function VideoConsultationPage() {
           )}
         </Paper>
 
-        {/* Chat panel */}
-        {chatOpen && (
+        {/* Chat panel — draggable on desktop; docked full-width on mobile where dragging doesn't make sense */}
+        {chatOpen &&
+          (() => {
+            const chatBody = (
+              <>
+                {chatSetupError && (
+                  <Alert severity="warning" sx={{ borderRadius: 0 }}>
+                    {chatSetupError}
+                  </Alert>
+                )}
+
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1.5 }}>
+                  <Stack spacing={1}>
+                    {orderedMessages.length === 0 && (
+                      <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+                        No messages yet. Say hello.
+                      </Typography>
+                    )}
+                    {orderedMessages.map((message) => {
+                      const isOwn = messageSenderId(message) === currentUserId;
+                      return (
+                        <Box
+                          key={message._id}
+                          sx={{
+                            alignSelf: isOwn ? 'flex-end' : 'flex-start',
+                            maxWidth: '80%',
+                            bgcolor: isOwn ? 'primary.main' : 'action.selected',
+                            color: isOwn ? 'primary.contrastText' : 'text.primary',
+                            borderRadius: 2,
+                            px: 1.5,
+                            py: 0.75,
+                          }}
+                        >
+                          <Typography variant="body2">{message.content}</Typography>
+                        </Box>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </Stack>
+                </Box>
+
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
+                >
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder={conversationId ? 'Type a message' : 'Connecting to chat…'}
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    disabled={!conversationId}
+                  />
+                  <IconButton
+                    color="primary"
+                    onClick={handleSend}
+                    disabled={!conversationId || !draft.trim() || isSending}
+                    aria-label="Send message"
+                  >
+                    <SendRoundedIcon />
+                  </IconButton>
+                </Stack>
+              </>
+            );
+
+            if (isMobile) {
+              return (
+                <Paper
+                  elevation={6}
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    bottom: CONTROL_BAR_HEIGHT,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 0,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}
+                  >
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Chat
+                    </Typography>
+                    <IconButton size="small" onClick={() => setChatOpen(false)} aria-label="Close chat">
+                      <CloseRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                  {chatBody}
+                </Paper>
+              );
+            }
+
+            return (
+              <DraggablePanel title="Chat" onClose={() => setChatOpen(false)} width={380} height={460}>
+                {chatBody}
+              </DraggablePanel>
+            );
+          })()}
+
+        {/* Recordings panel */}
+        {recordingsPanelOpen && (
           <Paper
             elevation={6}
             sx={{
               position: 'absolute',
               top: 0,
               right: 0,
-              bottom: 0,
+              bottom: CONTROL_BAR_HEIGHT,
               width: { xs: '100%', sm: 320 },
               display: 'flex',
               flexDirection: 'column',
@@ -437,71 +726,40 @@ export default function VideoConsultationPage() {
               sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}
             >
               <Typography variant="subtitle2" fontWeight={700}>
-                Chat with {otherName}
+                Recordings — {patientName}
               </Typography>
-              <IconButton size="small" onClick={() => setChatOpen(false)} aria-label="Close chat">
+              <IconButton
+                size="small"
+                onClick={() => setRecordingsPanelOpen(false)}
+                aria-label="Close recordings"
+              >
                 <CloseRoundedIcon fontSize="small" />
               </IconButton>
             </Stack>
 
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1.5 }}>
               <Stack spacing={1}>
-                {orderedMessages.length === 0 && (
+                {recordings.length === 0 && (
                   <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
-                    No messages yet. Say hello.
+                    No recordings saved yet for this appointment.
                   </Typography>
                 )}
-                {orderedMessages.map((message) => {
-                  const isOwn = messageSenderId(message) === currentUserId;
-                  return (
-                    <Box
-                      key={message._id}
-                      sx={{
-                        alignSelf: isOwn ? 'flex-end' : 'flex-start',
-                        maxWidth: '80%',
-                        bgcolor: isOwn ? 'primary.main' : 'action.selected',
-                        color: isOwn ? 'primary.contrastText' : 'text.primary',
-                        borderRadius: 2,
-                        px: 1.5,
-                        py: 0.75,
-                      }}
-                    >
-                      <Typography variant="body2">{message.content}</Typography>
-                    </Box>
-                  );
-                })}
-                <div ref={messagesEndRef} />
+                {recordings.map((recording) => (
+                  <Paper key={recording._id} variant="outlined" sx={{ p: 1.5 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {patientName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      {format(new Date(recording.createdAt), 'MMM d, yyyy p')}
+                      {recording.durationSeconds ? ` · ${formatDuration(recording.durationSeconds)}` : ''}
+                    </Typography>
+                    <a href={recording.fileUrl} target="_blank" rel="noreferrer">
+                      Play recording
+                    </a>
+                  </Paper>
+                ))}
               </Stack>
             </Box>
-
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
-            >
-              <TextField
-                size="small"
-                fullWidth
-                placeholder="Type a message"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSend();
-                  }
-                }}
-                disabled={!conversationId}
-              />
-              <IconButton
-                color="primary"
-                onClick={handleSend}
-                disabled={!conversationId || !draft.trim() || isSending}
-                aria-label="Send message"
-              >
-                <SendRoundedIcon />
-              </IconButton>
-            </Stack>
           </Paper>
         )}
 
@@ -546,7 +804,10 @@ export default function VideoConsultationPage() {
             </IconButton>
 
             <IconButton
-              onClick={() => setChatOpen((open) => !open)}
+              onClick={() => {
+                setChatOpen((open) => !open);
+                setRecordingsPanelOpen(false);
+              }}
               sx={{
                 bgcolor: chatOpen ? 'primary.main' : 'background.paper',
                 color: chatOpen ? 'primary.contrastText' : 'text.primary',
@@ -565,6 +826,54 @@ export default function VideoConsultationPage() {
               </Badge>
             </IconButton>
 
+            {canRecord && (
+              <Tooltip
+                title={
+                  isRecording
+                    ? 'Stop recording and save'
+                    : canStartRecording
+                      ? 'Record this call'
+                      : 'Waiting for the other participant to join before you can record'
+                }
+              >
+                <span>
+                  <IconButton
+                    onClick={handleToggleRecording}
+                    disabled={!isRecording && !canStartRecording}
+                    sx={{
+                      bgcolor: isRecording ? 'error.main' : 'background.paper',
+                      color: isRecording ? 'white' : 'text.primary',
+                      '&:hover': {
+                        bgcolor: isRecording ? 'error.dark' : 'background.paper',
+                      },
+                    }}
+                    size="large"
+                  >
+                    {isRecording ? <StopRoundedIcon /> : <FiberManualRecordIcon />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+
+            {canRecord && (
+              <IconButton
+                onClick={handleToggleRecordingsPanel}
+                sx={{
+                  bgcolor: recordingsPanelOpen ? 'primary.main' : 'background.paper',
+                  color: recordingsPanelOpen ? 'primary.contrastText' : 'text.primary',
+                  '&:hover': {
+                    bgcolor: recordingsPanelOpen ? 'primary.dark' : 'background.paper',
+                  },
+                }}
+                size="large"
+                aria-label="Recordings"
+              >
+                <Badge color="secondary" badgeContent={recordings.length} max={9}>
+                  <VideoLibraryRoundedIcon />
+                </Badge>
+              </IconButton>
+            )}
+
             <IconButton
               onClick={toggleFullscreen}
               sx={{ bgcolor: 'background.paper', color: 'text.primary' }}
@@ -573,6 +882,20 @@ export default function VideoConsultationPage() {
             >
               {isFullscreen ? <FullscreenExitRoundedIcon /> : <FullscreenRoundedIcon />}
             </IconButton>
+
+            <Tooltip title={isRecording ? 'Stop recording before minimizing' : 'Minimize call'}>
+              <span>
+                <IconButton
+                  onClick={handleMinimize}
+                  disabled={isRecording}
+                  sx={{ bgcolor: 'background.paper', color: 'text.primary' }}
+                  size="large"
+                  aria-label="Minimize call"
+                >
+                  <MinimizeRoundedIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
 
             <IconButton
               onClick={handleEndCall}
@@ -602,17 +925,6 @@ export default function VideoConsultationPage() {
 
       {showDoctorPanel && (
         <Paper sx={{ flex: '0 0 50%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ px: 3, pt: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Patient: {patientName}
-            </Typography>
-            <Tabs value={rightTab} onChange={(_event, value) => setRightTab(value)}>
-              <Tab label="Vitals" value="vitals" />
-              <Tab label="Test Results" value="testResults" />
-              <Tab label="Prescription" value="prescription" />
-            </Tabs>
-          </Box>
-
           <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 3 }}>
             {rightTab === 'vitals' && (
               <DataTable
@@ -626,14 +938,16 @@ export default function VideoConsultationPage() {
             )}
 
             {rightTab === 'testResults' && (
-              <DataTable
-                columns={labReportColumns}
-                rows={labReports}
-                getRowId={(row) => row._id}
-                loading={isFetchingLabReports}
-                emptyTitle="No lab tests on record"
-                emptyDescription="No lab tests have been requested for this patient yet."
-              />
+              <Stack spacing={2}>
+                <DataTable
+                  columns={labReportColumns}
+                  rows={labReports}
+                  getRowId={(row) => row._id}
+                  loading={isFetchingLabReports}
+                  emptyTitle="No lab tests on record"
+                  emptyDescription="No lab tests have been requested for this patient yet."
+                />
+              </Stack>
             )}
 
             {rightTab === 'prescription' &&
@@ -649,9 +963,32 @@ export default function VideoConsultationPage() {
       )}
       </Stack>
 
+      <ReportViewerDialog
+        open={!!reportViewerUrl}
+        onClose={() => setReportViewerUrl(null)}
+        url={reportViewerUrl}
+        title="Lab Report"
+      />
+
       <Snackbar open={prescriptionSaved} autoHideDuration={3000} onClose={() => setPrescriptionSaved(false)}>
         <Alert severity="success" onClose={() => setPrescriptionSaved(false)}>
           Prescription saved
+        </Alert>
+      </Snackbar>
+
+      <Snackbar open={recordingSaved} autoHideDuration={3000} onClose={() => setRecordingSaved(false)}>
+        <Alert severity="success" onClose={() => setRecordingSaved(false)}>
+          Recording saved
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={Boolean(recordingSaveError || recordingError)}
+        autoHideDuration={4000}
+        onClose={() => setRecordingSaveError(null)}
+      >
+        <Alert severity="error" onClose={() => setRecordingSaveError(null)}>
+          {recordingSaveError ?? recordingError}
         </Alert>
       </Snackbar>
     </>

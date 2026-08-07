@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import {
   AppBar,
   Avatar,
@@ -22,6 +22,8 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useLogoutMutation } from '../../features/auth/authApi';
 import { logout as logoutAction } from '../../features/auth/authSlice';
 import NotificationBell from './NotificationBell';
+
+const CLIENT_URL = import.meta.env.VITE_CLIENT_URL ?? 'https://localhost:5173';
 
 const DRAWER_WIDTH = 260;
 const SIDEBAR_BG = '#1e3a8a';
@@ -46,16 +48,19 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [logoutMutation] = useLogoutMutation();
 
+  // Sent back to the client app's shared login page — not this console's own
+  // /login — since that's the one page every role (including admin) signs in
+  // from; landing here again would just invite the double-login the handoff
+  // flow was built to avoid.
   const handleLogout = async () => {
     try {
       await logoutMutation().unwrap();
     } finally {
       dispatch(logoutAction());
-      navigate('/login', { replace: true });
+      window.location.href = `${CLIENT_URL}/login`;
     }
   };
 

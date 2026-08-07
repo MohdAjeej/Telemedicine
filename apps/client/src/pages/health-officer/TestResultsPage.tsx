@@ -11,8 +11,9 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from '@mui/material';
-import { DataTable, PageHeader, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
+import { DataTable, PageHeader, ReportViewerDialog, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
 import type { LabReport, LabReportStatus, Patient, User } from '@telemedicine/types';
 import { format } from 'date-fns';
 import { useGetMyHealthOfficerProfileQuery } from '../../features/healthOfficer/healthOfficerApi';
@@ -22,6 +23,7 @@ import {
   useListLabReportsQuery,
   useRequestLabReportMutation,
   useUpdateLabReportMutation,
+  useUploadLabReportFileMutation,
 } from '../../features/labReport/labReportApi';
 import { COMMON_TESTS } from '../../features/labReport/constants';
 
@@ -44,6 +46,8 @@ interface AddResultForm {
   resultSummary: string;
 }
 
+const REPORT_FILE_ACCEPT = 'image/png,image/jpeg,image/webp,application/pdf';
+
 function parseErrorMessage(err: unknown, fallback: string): string {
   const errData = (err as { data?: { message?: string; errors?: { field?: string; message: string }[] } })?.data;
   const detail = errData?.errors?.map((e) => e.message).join(', ');
@@ -58,6 +62,9 @@ export default function TestResultsPage() {
   const [activeReport, setActiveReport] = useState<LabReport | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<LabReport | null>(null);
+  const [fillFile, setFillFile] = useState<File | null>(null);
+  const [addFile, setAddFile] = useState<File | null>(null);
+  const [reportViewerUrl, setReportViewerUrl] = useState<string | null>(null);
 
   const { data: officer } = useGetMyHealthOfficerProfileQuery();
   const hospitalId = officer?.hospitalId ?? '';
@@ -72,6 +79,7 @@ export default function TestResultsPage() {
   const [requestLabReport, { isLoading: isRequesting }] = useRequestLabReportMutation();
   const [updateLabReport, { isLoading: isSaving }] = useUpdateLabReportMutation();
   const [deleteLabReport, { isLoading: isDeleting }] = useDeleteLabReportMutation();
+  const [uploadLabReportFile, { isLoading: isUploading }] = useUploadLabReportFileMutation();
 
   const { control, handleSubmit, reset } = useForm<FillResultForm>({
     defaultValues: { status: 'completed', resultSummary: '' },
@@ -85,6 +93,7 @@ export default function TestResultsPage() {
   const openFillDialog = (report: LabReport) => {
     setActiveReport(report);
     reset({ status: 'completed', resultSummary: report.resultSummary ?? '' });
+    setFillFile(null);
     setError(null);
   };
 
@@ -96,6 +105,9 @@ export default function TestResultsPage() {
         status: data.status,
         resultSummary: data.resultSummary || undefined,
       }).unwrap();
+      if (fillFile) {
+        await uploadLabReportFile({ id: activeReport._id, file: fillFile }).unwrap();
+      }
       setActiveReport(null);
     } catch (err) {
       setError(parseErrorMessage(err, 'Failed to save the test result'));
@@ -104,6 +116,7 @@ export default function TestResultsPage() {
 
   const openAddDialog = () => {
     addForm.reset({ testType: '', customTestType: '', status: 'completed', resultSummary: '' });
+    setAddFile(null);
     setError(null);
     setAddOpen(true);
   };
@@ -127,6 +140,9 @@ export default function TestResultsPage() {
         status: data.status,
         resultSummary: data.resultSummary || undefined,
       }).unwrap();
+      if (addFile) {
+        await uploadLabReportFile({ id: created._id, file: addFile }).unwrap();
+      }
       setAddOpen(false);
     } catch (err) {
       setError(parseErrorMessage(err, 'Failed to add the test result'));
@@ -149,6 +165,18 @@ export default function TestResultsPage() {
     { key: 'requested', header: 'Requested', render: (row) => format(new Date(row.requestedAt), 'MMM d, yyyy') },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     { key: 'summary', header: 'Summary', render: (row) => row.resultSummary ?? '—' },
+    {
+      key: 'report',
+      header: 'Report',
+      render: (row) =>
+        row.resultFileUrl ? (
+          <Button size="small" variant="text" onClick={() => setReportViewerUrl(row.resultFileUrl!)}>
+            View report
+          </Button>
+        ) : (
+          '—'
+        ),
+    },
     {
       key: 'actions',
       header: 'Actions',
@@ -247,12 +275,24 @@ export default function TestResultsPage() {
                   />
                 )}
               />
+              <Stack spacing={0.5}>
+                <Button variant="outlined" component="label">
+                  {fillFile ? 'Change report file' : 'Attach report file'}
+                  <input
+                    type="file"
+                    hidden
+                    accept={REPORT_FILE_ACCEPT}
+                    onChange={(e) => setFillFile(e.target.files?.[0] ?? null)}
+                  />
+                </Button>
+                {fillFile && <Typography variant="caption">{fillFile.name}</Typography>}
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setActiveReport(null)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save result'}
+            <Button type="submit" variant="contained" disabled={isSaving || isUploading}>
+              {isSaving || isUploading ? 'Saving...' : 'Save result'}
             </Button>
           </DialogActions>
         </form>
@@ -328,12 +368,24 @@ export default function TestResultsPage() {
                   />
                 )}
               />
+              <Stack spacing={0.5}>
+                <Button variant="outlined" component="label">
+                  {addFile ? 'Change report file' : 'Attach report file'}
+                  <input
+                    type="file"
+                    hidden
+                    accept={REPORT_FILE_ACCEPT}
+                    onChange={(e) => setAddFile(e.target.files?.[0] ?? null)}
+                  />
+                </Button>
+                {addFile && <Typography variant="caption">{addFile.name}</Typography>}
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={isRequesting || isSaving}>
-              {isRequesting || isSaving ? 'Saving...' : 'Save result'}
+            <Button type="submit" variant="contained" disabled={isRequesting || isSaving || isUploading}>
+              {isRequesting || isSaving || isUploading ? 'Saving...' : 'Save result'}
             </Button>
           </DialogActions>
         </form>
@@ -357,6 +409,13 @@ export default function TestResultsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ReportViewerDialog
+        open={!!reportViewerUrl}
+        onClose={() => setReportViewerUrl(null)}
+        url={reportViewerUrl}
+        title="Lab Report"
+      />
     </>
   );
 }

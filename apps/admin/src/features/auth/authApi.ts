@@ -9,6 +9,14 @@ export const authApi = baseApi.injectEndpoints({
         response.data,
       invalidatesTags: ['User'],
     }),
+    /** Redeems a one-time ticket minted by the client app's shared login page for
+     * an admin — completes a real login (sets our own refresh cookie) without the
+     * admin having to type their password a second time here. */
+    exchangeAdminHandoff: builder.mutation<{ user: User; accessToken: string }, { ticket: string }>({
+      query: (body) => ({ url: '/auth/admin-handoff/exchange', method: 'POST', body }),
+      transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
+      invalidatesTags: ['User'],
+    }),
     refresh: builder.mutation<{ user: User; accessToken: string }, void>({
       query: () => ({ url: '/auth/refresh', method: 'POST' }),
       transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
@@ -34,6 +42,7 @@ export const authApi = baseApi.injectEndpoints({
 
 export const {
   useLoginMutation,
+  useExchangeAdminHandoffMutation,
   useRefreshMutation,
   useLogoutMutation,
   useGetMeQuery,

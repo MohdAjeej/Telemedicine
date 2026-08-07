@@ -21,20 +21,30 @@ services:
       mongo:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 5000
-      CLIENT_URL: http://localhost:8080,http://localhost:8081
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080,http://localhost:8081}
       MONGO_URI: mongodb://mongo:27017/telemedicine
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me}
-      JWT_ACCESS_EXPIRES_IN: 15m
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me}
-      JWT_REFRESH_EXPIRES_IN: 7d
-      REFRESH_COOKIE_NAME: telemedicine_refresh_token
-      BCRYPT_SALT_ROUNDS: 12
-      RATE_LIMIT_WINDOW_MS: 900000
-      RATE_LIMIT_MAX: 300
-      AUTH_RATE_LIMIT_MAX: 20
-      LOG_LEVEL: info
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      REFRESH_COOKIE_NAME: ${REFRESH_COOKIE_NAME:-telemedicine_refresh_token}
+      ADMIN_HANDOFF_SECRET: ${ADMIN_HANDOFF_SECRET:-change-me-admin-handoff-secret}
+      ADMIN_HANDOFF_EXPIRES_IN: ${ADMIN_HANDOFF_EXPIRES_IN:-60s}
+      BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-12}
+      MAIL_HOST: ${MAIL_HOST:-smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASS: ${MAIL_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Telemedicine Platform <no-reply@telemedicine.local>}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-20}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - '5002:5000'
     healthcheck:
@@ -48,8 +58,11 @@ services:
       context: .
       dockerfile: apps/client/Dockerfile
       args:
-        VITE_API_BASE_URL: /api/v1
-        VITE_SOCKET_URL: /
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-/}
+        VITE_ADMIN_CONSOLE_URL: ${VITE_ADMIN_CONSOLE_URL:-http://localhost:8081}
+        VITE_TURN_USERNAME: ${VITE_TURN_USERNAME:-}
+        VITE_TURN_PASSWORD: ${VITE_TURN_PASSWORD:-}
     restart: unless-stopped
     depends_on:
       - server
@@ -61,8 +74,9 @@ services:
       context: .
       dockerfile: apps/admin/Dockerfile
       args:
-        VITE_API_BASE_URL: /api/v1
-        VITE_SOCKET_URL: /
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-/}
+        VITE_CLIENT_URL: ${VITE_CLIENT_URL:-http://localhost:8080}
     restart: unless-stopped
     depends_on:
       - server

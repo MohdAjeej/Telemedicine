@@ -38,6 +38,12 @@ export const labReportController = {
     sendSuccess(res, report, 'Lab report updated');
   }),
 
+  uploadReport: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) throw ApiError.badRequest('No report file was uploaded');
+    const report = await labReportService.uploadReport(req.params.id, req.file.buffer);
+    sendSuccess(res, report, 'Test report uploaded');
+  }),
+
   remove: asyncHandler(async (req: Request, res: Response) => {
     const existing = await labReportService.getById(req.params.id);
     assertOwnHospital(req.user!, existing.hospitalId);

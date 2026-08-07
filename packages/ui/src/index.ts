@@ -4,6 +4,7 @@ export * from './components/StatCard';
 export * from './components/EmptyState';
 export * from './components/LoadingSpinner';
 export * from './components/ConfirmDialog';
+export * from './components/ReportViewerDialog';
 export * from './components/StatusBadge';
 export * from './components/DataTable';
 export * from './components/FormTextField';

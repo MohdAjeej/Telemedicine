@@ -21,6 +21,18 @@ export const authApi = baseApi.injectEndpoints({
       transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
       invalidatesTags: ['User'],
     }),
+    /** Hands an admin off to the standalone Admin Console without a second password
+     * entry — takes the accessToken just returned by `login` directly (rather than
+     * relying on Redux state, which we deliberately never populate for an admin
+     * session in this app) and exchanges it for a one-time ticket the console can redeem. */
+    requestAdminHandoff: builder.mutation<{ ticket: string }, string>({
+      query: (accessToken) => ({
+        url: '/auth/admin-handoff',
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+      transformResponse: (response: { data: { ticket: string } }) => response.data,
+    }),
     refresh: builder.mutation<{ user: User; accessToken: string }, void>({
       query: () => ({ url: '/auth/refresh', method: 'POST' }),
       transformResponse: (response: { data: { user: User; accessToken: string } }) => response.data,
@@ -48,6 +60,7 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useRegisterAdminMutation,
+  useRequestAdminHandoffMutation,
   useRefreshMutation,
   useLogoutMutation,
   useGetMeQuery,
