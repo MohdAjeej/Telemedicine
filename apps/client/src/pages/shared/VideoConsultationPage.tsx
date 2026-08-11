@@ -6,8 +6,14 @@ import {
   Box,
   Paper,
   IconButton,
+  Skeleton,
   Stack,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableRow,
   Tabs,
   TextField,
   Typography,
@@ -19,6 +25,11 @@ import {
   Tooltip,
   useMediaQuery,
   useTheme,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -34,13 +45,20 @@ import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import VideoLibraryRoundedIcon from '@mui/icons-material/VideoLibraryRounded';
 import MinimizeRoundedIcon from '@mui/icons-material/MinimizeRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
+import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded';
+import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import MedicationOutlinedIcon from '@mui/icons-material/MedicationOutlined';
 import { SOCKET_EVENTS } from '@telemedicine/constants';
-import type { LabReport, Message, Vital } from '@telemedicine/types';
+import type { LabReport, Message, Recording, Vital } from '@telemedicine/types';
 import {
   DataTable,
+  EmptyState,
   LoadingSpinner,
   PageHeader,
-  ReportViewerDialog,
+  ReportViewerPanel,
   StatusBadge,
   type DataTableColumn,
 } from '@telemedicine/ui';
@@ -54,7 +72,11 @@ import { useGetAppointmentQuery } from '../../features/appointment/appointmentAp
 import { useListVitalsQuery } from '../../features/vital/vitalApi';
 import { useListLabReportsQuery } from '../../features/labReport/labReportApi';
 import { useStartConsultationMutation } from '../../features/consultation/consultationApi';
-import { useListRecordingsQuery, useUploadRecordingMutation } from '../../features/recording/recordingApi';
+import {
+  useListRecordingsQuery,
+  useUploadRecordingMutation,
+  useDeleteRecordingMutation,
+} from '../../features/recording/recordingApi';
 import { PrescriptionForm } from '../../features/prescription/components/PrescriptionForm';
 import {
   messageApi,
@@ -79,6 +101,8 @@ function formatDuration(seconds?: number): string {
 
 const vitalColumns: DataTableColumn<Vital>[] = [
   { key: 'date', header: 'Date', render: (row) => format(new Date(row.recordedAt), 'MMM d, yyyy p') },
+  { key: 'age', header: 'Age', render: (row) => row.age ?? '—' },
+  { key: 'gender', header: 'Gender', render: (row) => row.gender ?? '—' },
   {
     key: 'bp',
     header: 'Blood pressure',
@@ -92,8 +116,55 @@ const vitalColumns: DataTableColumn<Vital>[] = [
   { key: 'spo2', header: 'SpO2', render: (row) => row.oxygenSaturation ?? '—' },
   { key: 'bmi', header: 'BMI', render: (row) => row.bmi ?? '—' },
   { key: 'bloodSugar', header: 'Blood sugar', render: (row) => row.bloodSugar ?? '—' },
+  { key: 'hemoglobin', header: 'Hemoglobin', render: (row) => row.hemoglobin ?? '—' },
+  { key: 'comorbidity', header: 'Comorbidity', render: (row) => row.comorbidity ?? '—' },
+  { key: 'complaints', header: 'Complaints', render: (row) => row.complaints ?? '—' },
   { key: 'symptoms', header: 'Symptoms', render: (row) => row.symptoms ?? '—' },
 ];
+
+/** Same markup/CSS as DataTable (Paper variant="outlined" > TableContainer > Table > TableBody,
+ * Skeleton loading rows, EmptyState, row hover) — axes swapped: vitalColumns become rows,
+ * vitals become columns, instead of the other way around. */
+function VitalsHistoryPanel({ vitals, loading }: { vitals: Vital[]; loading: boolean }) {
+  return (
+    <Paper variant="outlined">
+      <TableContainer>
+        <Table>
+          <TableBody>
+            {loading &&
+              vitalColumns.map((column) => (
+                <TableRow key={column.key}>
+                  <TableCell component="th" scope="row">
+                    {column.header}
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton variant="text" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!loading &&
+              vitalColumns.map((column) => (
+                <TableRow key={column.key} hover>
+                  <TableCell component="th" scope="row">
+                    {column.header}
+                  </TableCell>
+                  {vitals.map((vital) => (
+                    <TableCell key={vital._id}>{column.render(vital)}</TableCell>
+                  ))}
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      {!loading && vitals.length === 0 && (
+        <EmptyState
+          title="No vitals recorded yet"
+          description="The health officer hasn't recorded any vitals for this patient yet."
+        />
+      )}
+    </Paper>
+  );
+}
 
 function createLabReportColumns(onViewReport: (url: string) => void): DataTableColumn<LabReport>[] {
   return [
@@ -142,8 +213,9 @@ export default function VideoConsultationPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.auth.accessToken);
-  const currentUserId = useAppSelector((state) => state.auth.user?.id);
-  const currentUserRole = useAppSelector((state) => state.auth.user?.role);
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentUserId = currentUser?.id;
+  const currentUserRole = currentUser?.role;
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -164,7 +236,7 @@ export default function VideoConsultationPage() {
 
   const otherUserId =
     participantUserId(appointment?.doctorId) === currentUserId
-      ? participantUserId(appointment?.healthOfficerId)
+      ? participantUserId(appointment?.patientId)
       : participantUserId(appointment?.doctorId);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,11 +245,12 @@ export default function VideoConsultationPage() {
     ? `${patientInfo.userId.firstName} ${patientInfo.userId.lastName}`
     : 'Unknown Patient';
   const patientId: string | undefined = patientInfo?._id;
+  const doctorName = currentUser ? `${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim() : '';
   const showDoctorPanel = currentUserRole === 'doctor';
-  // Video calls are Doctor <-> Health Officer only (see videoService), so this
-  // is always true here in practice — kept explicit so the record button's
-  // visibility is self-documenting rather than relying on routing alone.
-  const canRecord = currentUserRole === 'doctor' || currentUserRole === 'health_officer';
+  // Video calls are Doctor <-> Patient only (see videoService) — recording is
+  // kept doctor-controlled, matching who could record before this page also
+  // stopped admitting the health officer.
+  const canRecord = currentUserRole === 'doctor';
 
   const { data: vitals = [], isFetching: isFetchingVitals } = useListVitalsQuery(
     { patientId },
@@ -189,6 +262,14 @@ export default function VideoConsultationPage() {
   );
 
   const [reportViewerUrl, setReportViewerUrl] = useState<string | null>(null);
+  // Report opens docked inline in the right-hand panel (50/50 next to the call) by
+  // default; maximizing promotes it to a full-screen dialog. Reset on close so the
+  // next report always starts docked rather than reopening maximized.
+  const [reportMaximized, setReportMaximized] = useState(false);
+  const closeReportViewer = () => {
+    setReportViewerUrl(null);
+    setReportMaximized(false);
+  };
   const labReportColumns = useMemo(() => createLabReportColumns(setReportViewerUrl), []);
 
   const [rightTab, setRightTab] = useState<'vitals' | 'testResults' | 'prescription'>('vitals');
@@ -206,32 +287,86 @@ export default function VideoConsultationPage() {
         direction="row"
         spacing={2}
         alignItems="center"
-        justifyContent="flex-end"
+        justifyContent="space-between"
         sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}
       >
         <Typography
           variant="body2"
           color="text.secondary"
           noWrap
-          sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0 }}
+          sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
         >
-          {patientName}
+          {doctorName ? (
+            <>
+              Dr. {doctorName} | <Box component="span" fontWeight={700}>P:</Box> {patientName}
+            </>
+          ) : (
+            patientName
+          )}
         </Typography>
         <Tabs
           value={rightTab}
           onChange={(_event, value) => setRightTab(value)}
           variant="scrollable"
           scrollButtons="auto"
-          sx={{ minHeight: 0, '& .MuiTab-root': { minHeight: 48, py: 0 } }}
+          allowScrollButtonsMobile
+          TabIndicatorProps={{ sx: { display: 'none' } }}
+          sx={{
+            minHeight: 0,
+            flexShrink: 0,
+            maxWidth: '100%',
+            bgcolor: 'action.hover',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 999,
+            p: 0.5,
+            '& .MuiTabs-flexContainer': { gap: 0.5 },
+            '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.3 },
+            '& .MuiTab-root': {
+              minHeight: 32,
+              minWidth: 0,
+              py: 0.5,
+              px: 1.25,
+              borderRadius: 999,
+              textTransform: 'none',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'text.secondary',
+              transition: 'background-color 0.15s ease, color 0.15s ease',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              bgcolor: 'background.paper',
+              color: 'primary.main',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.12)',
+            },
+          }}
         >
-          <Tab label="Vitals" value="vitals" />
-          <Tab label="Test Results" value="testResults" />
-          <Tab label="Prescription" value="prescription" />
+          <Tab
+            icon={<MonitorHeartOutlinedIcon fontSize="small" />}
+            iconPosition="start"
+            label={isMobile ? undefined : 'Vitals'}
+            aria-label="Vitals"
+            value="vitals"
+          />
+          <Tab
+            icon={<ScienceOutlinedIcon fontSize="small" />}
+            iconPosition="start"
+            label={isMobile ? undefined : 'Test Results'}
+            aria-label="Test Results"
+            value="testResults"
+          />
+          <Tab
+            icon={<MedicationOutlinedIcon fontSize="small" />}
+            iconPosition="start"
+            label={isMobile ? undefined : 'Prescription'}
+            aria-label="Prescription"
+            value="prescription"
+          />
         </Tabs>
       </Stack>,
     );
     return () => setHeaderContent(null);
-  }, [showDoctorPanel, patientName, rightTab, setHeaderContent]);
+  }, [showDoctorPanel, doctorName, patientName, rightTab, isMobile, setHeaderContent]);
 
   const [startConsultation] = useStartConsultationMutation();
   const [consultationId, setConsultationId] = useState<string | null>(null);
@@ -361,13 +496,18 @@ export default function VideoConsultationPage() {
 
   const isActiveCall = activeCall?.appointmentId === appointmentId;
 
-  // Starts the call the first time this page is opened for this appointment. If the
-  // call is already active (e.g. the user navigated back in after minimizing), this
-  // is a no-op — re-calling startCall would otherwise be harmless but unnecessary.
+  // Starts the call the first time this page is opened for this appointment. Guarded
+  // by a ref (not just `isActiveCall`) scoped to this mount: ending the call sets
+  // activeCall to null, which flips isActiveCall to false while this page is still
+  // mounted (handleEndCall navigates away 2s later) — without the ref, that flip would
+  // satisfy this effect's guard again and re-invoke startCall, silently restarting the
+  // call (and the camera) right after the user ended it.
+  const hasJoinedRef = useRef(false);
   useEffect(() => {
-    if (!appointmentId || !room?.roomId || isActiveCall) return;
+    if (!appointmentId || !room?.roomId || hasJoinedRef.current) return;
+    hasJoinedRef.current = true;
     startCall({ appointmentId, roomId: room.roomId });
-  }, [appointmentId, room?.roomId, isActiveCall, startCall]);
+  }, [appointmentId, room?.roomId, startCall]);
 
   useEffect(() => {
     if (!contextCallEnded) return;
@@ -424,6 +564,26 @@ export default function VideoConsultationPage() {
   const { data: recordings = [] } = useListRecordingsQuery(appointmentId!, {
     skip: !appointmentId || !canRecord,
   });
+
+  const [deleteTarget, setDeleteTarget] = useState<Recording | null>(null);
+  const [deleteRecording, { isLoading: isDeletingRecording }] = useDeleteRecordingMutation();
+  const [recordingDeleted, setRecordingDeleted] = useState(false);
+  const [recordingDeleteError, setRecordingDeleteError] = useState<string | null>(null);
+
+  const handleDeleteRecording = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteRecording(deleteTarget._id).unwrap();
+      setDeleteTarget(null);
+      setRecordingDeleted(true);
+    } catch (err) {
+      const data = (err as { data?: { message?: string } } | undefined)?.data;
+      setRecordingDeleteError(
+        data?.message ? `Failed to delete the recording: ${data.message}` : 'Failed to delete the recording.',
+      );
+      setDeleteTarget(null);
+    }
+  };
 
   const handleToggleRecording = () => {
     if (isRecording) {
@@ -746,9 +906,19 @@ export default function VideoConsultationPage() {
                 )}
                 {recordings.map((recording) => (
                   <Paper key={recording._id} variant="outlined" sx={{ p: 1.5 }}>
-                    <Typography variant="body2" fontWeight={600}>
-                      {patientName}
-                    </Typography>
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
+                      <Typography variant="body2" fontWeight={600}>
+                        {patientName}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => setDeleteTarget(recording)}
+                        aria-label="Delete recording"
+                        sx={{ mt: -0.5, mr: -0.5 }}
+                      >
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
                     <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
                       {format(new Date(recording.createdAt), 'MMM d, yyyy p')}
                       {recording.durationSeconds ? ` · ${formatDuration(recording.durationSeconds)}` : ''}
@@ -924,18 +1094,11 @@ export default function VideoConsultationPage() {
       </Box>
 
       {showDoctorPanel && (
-        <Paper sx={{ flex: '0 0 50%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Paper
+          sx={{ flex: '0 0 50%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}
+        >
           <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 3 }}>
-            {rightTab === 'vitals' && (
-              <DataTable
-                columns={vitalColumns}
-                rows={vitals}
-                getRowId={(row) => row._id}
-                loading={isFetchingVitals}
-                emptyTitle="No vitals recorded yet"
-                emptyDescription="The health officer hasn't recorded any vitals for this patient yet."
-              />
-            )}
+            {rightTab === 'vitals' && <VitalsHistoryPanel vitals={vitals} loading={isFetchingVitals} />}
 
             {rightTab === 'testResults' && (
               <Stack spacing={2}>
@@ -959,16 +1122,66 @@ export default function VideoConsultationPage() {
                 <PrescriptionForm consultationId={consultationId} onSaved={() => setPrescriptionSaved(true)} />
               ))}
           </Box>
+
+          {/* Docked report view — fills this same 50% panel instead of overlaying the
+              video call or the app header. Maximize promotes it to the fullscreen Dialog below. */}
+          {reportViewerUrl && !reportMaximized && (
+            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'background.paper', zIndex: 2 }}>
+              <ReportViewerPanel
+                url={reportViewerUrl}
+                title="Lab Report"
+                onClose={closeReportViewer}
+                extraActions={
+                  <Tooltip title="Maximize">
+                    <IconButton size="small" onClick={() => setReportMaximized(true)} aria-label="Maximize">
+                      <OpenInFullRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
+            </Box>
+          )}
         </Paper>
       )}
       </Stack>
 
-      <ReportViewerDialog
-        open={!!reportViewerUrl}
-        onClose={() => setReportViewerUrl(null)}
-        url={reportViewerUrl}
-        title="Lab Report"
-      />
+      {reportViewerUrl && reportMaximized && (
+        <Dialog
+          open
+          onClose={closeReportViewer}
+          maxWidth={false}
+          fullWidth
+          PaperProps={{ sx: { m: 0, width: '100vw', height: '100vh', maxWidth: '100vw', borderRadius: 0 } }}
+        >
+          <ReportViewerPanel
+            url={reportViewerUrl}
+            title="Lab Report"
+            onClose={closeReportViewer}
+            extraActions={
+              <Tooltip title="Restore">
+                <IconButton size="small" onClick={() => setReportMaximized(false)} aria-label="Restore">
+                  <CloseFullscreenRoundedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            }
+          />
+        </Dialog>
+      )}
+
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete recording?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will permanently delete this recording. This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteRecording} disabled={isDeletingRecording}>
+            {isDeletingRecording ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={prescriptionSaved} autoHideDuration={3000} onClose={() => setPrescriptionSaved(false)}>
         <Alert severity="success" onClose={() => setPrescriptionSaved(false)}>
@@ -989,6 +1202,22 @@ export default function VideoConsultationPage() {
       >
         <Alert severity="error" onClose={() => setRecordingSaveError(null)}>
           {recordingSaveError ?? recordingError}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar open={recordingDeleted} autoHideDuration={3000} onClose={() => setRecordingDeleted(false)}>
+        <Alert severity="success" onClose={() => setRecordingDeleted(false)}>
+          Recording deleted
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={Boolean(recordingDeleteError)}
+        autoHideDuration={4000}
+        onClose={() => setRecordingDeleteError(null)}
+      >
+        <Alert severity="error" onClose={() => setRecordingDeleteError(null)}>
+          {recordingDeleteError}
         </Alert>
       </Snackbar>
     </>

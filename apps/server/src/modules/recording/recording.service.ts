@@ -60,4 +60,15 @@ export const recordingService = {
 
     return recordingRepository.findByAppointmentId(appointmentId);
   },
+
+  async remove(id: string, requestingUserId: string) {
+    const recording = await recordingRepository.findById(id);
+    if (!recording) throw ApiError.notFound('Recording not found');
+
+    const appointment = await appointmentRepository.findById(String(recording.appointmentId));
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+    assertVideoParticipant(appointment, requestingUserId);
+
+    await recordingRepository.deleteById(id);
+  },
 };

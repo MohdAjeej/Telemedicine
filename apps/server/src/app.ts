@@ -21,12 +21,12 @@ export function createApp(): Express {
   app.use(
     helmet({
       // helmet's default HSTS header goes out over plain HTTP just as readily as
-      // HTTPS. In dev, the client app runs on its own self-signed HTTPS origin
-      // (vite-plugin-basic-ssl) and proxies /api straight through to this server,
+      // HTTPS. In dev, the client app runs on its own HTTPS origin
+      // (vite-plugin-mkcert) and proxies /api straight through to this server,
       // so the browser sees that header arrive over a genuinely secure connection
       // to hostname "localhost" — and Chrome's HSTS cache is host-only, ignoring
       // port. That poisons every OTHER localhost port (e.g. the Admin Console on
-      // :5174, plain HTTP) into being silently upgraded to https:// and failing
+      // :5184, plain HTTP) into being silently upgraded to https:// and failing
       // with "didn't send any data", since nothing is listening for TLS there.
       hsts: isProduction,
     }),

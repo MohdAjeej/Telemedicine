@@ -8,10 +8,9 @@ export const prescriptionRepository = {
     hospitalId: string;
     medications: Medication[];
     comorbidity?: string;
-    complaints?: string;
     allergy?: string;
     otherIllness?: string;
-    chiefComplaints?: string;
+    familyHistory?: string;
     symptoms?: string;
     advice?: string;
     provisionalDiagnosis?: string;

@@ -14,6 +14,11 @@ export const vitalRepository = {
     weight?: number;
     height?: number;
     bloodSugar?: number;
+    age?: number;
+    gender?: 'male' | 'female' | 'other';
+    hemoglobin?: number;
+    comorbidity?: string;
+    complaints?: string;
     symptoms?: string;
     notes?: string;
   }): Promise<HydratedVital> {

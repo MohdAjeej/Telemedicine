@@ -15,10 +15,9 @@ export interface Prescription extends BaseEntity {
   doctorId: string;
   patientId: string;
   comorbidity?: string;
-  complaints?: string;
   allergy?: string;
   otherIllness?: string;
-  chiefComplaints?: string;
+  familyHistory?: string;
   symptoms?: string;
   medications: Medication[];
   advice?: string;

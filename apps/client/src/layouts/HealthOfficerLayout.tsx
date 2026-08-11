@@ -9,10 +9,10 @@ import DashboardShell, { type DashboardNavItem } from '../components/layout/Dash
 
 const navItems: DashboardNavItem[] = [
   { label: 'Dashboard', path: '/app/health-officer', icon: <DashboardOutlinedIcon />, end: true },
-  { label: 'Register Patient', path: '/app/health-officer/register-patient', icon: <PersonAddAltOutlinedIcon /> },
+  { label: 'Patient Intake', path: '/app/health-officer/register-patient', icon: <PersonAddAltOutlinedIcon /> },
   { label: 'Appointments', path: '/app/health-officer/appointments', icon: <EventNoteOutlinedIcon /> },
   {
-    label: 'Book Appointment',
+    label: 'Book Video Consultation',
     path: '/app/health-officer/appointments/book',
     icon: <EventAvailableOutlinedIcon />,
   },

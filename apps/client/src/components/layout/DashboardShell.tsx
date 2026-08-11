@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Avatar,
@@ -13,6 +13,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -58,9 +59,21 @@ function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAppSelector((state) => state.auth.user);
   const [logoutMutation] = useLogoutMutation();
   const { headerContent } = useHeaderContent();
+
+  // Drives the "<Role Desk> / <Page>" breadcrumb in the app bar — the active
+  // nav item is whichever one's path matches the current route, so this
+  // stays correct for every page without hand-listing titles here. Picks the
+  // longest matching path (not just the first) since some nav paths are
+  // prefixes of others, e.g. .../appointments vs .../appointments/book.
+  const activeNavItem = navItems.reduce<DashboardNavItem | undefined>((best, item) => {
+    const matches = item.end ? location.pathname === item.path : location.pathname.startsWith(item.path);
+    if (!matches) return best;
+    return !best || item.path.length > best.path.length ? item : best;
+  }, undefined);
 
   const handleLogout = async () => {
     try {
@@ -109,7 +122,7 @@ function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <AppBar
         position="fixed"
         color="inherit"
@@ -140,9 +153,21 @@ function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
             {desktopOpen ? <MenuOpenIcon /> : <MenuIcon />}
           </IconButton>
           {headerContent ?? (
-            <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-              {roleLabel}
-            </Typography>
+            <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" color="text.secondary" noWrap>
+                {roleLabel}
+              </Typography>
+              {activeNavItem && (
+                <>
+                  <Typography variant="subtitle1" color="text.secondary">
+                    /
+                  </Typography>
+                  <Typography variant="subtitle1" fontWeight={700} noWrap>
+                    {activeNavItem.label}
+                  </Typography>
+                </>
+              )}
+            </Stack>
           )}
           <NotificationBell />
           <IconButton onClick={(event) => setMenuAnchor(event.currentTarget)}>
@@ -210,6 +235,10 @@ function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
         sx={(theme) => ({
           flexGrow: 1,
           width: { md: desktopOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
+          height: '100%',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
           px: { xs: 2, md: 4 },
           py: 4,
           transition: theme.transitions.create('width', {
@@ -218,8 +247,15 @@ function DashboardShellInner({ roleLabel, navItems }: DashboardShellProps) {
           }),
         })}
       >
-        <Toolbar />
-        <Outlet />
+        <Toolbar sx={{ flexShrink: 0 }} />
+        {/* flex:1 + minHeight:0 gives page content a definite height to fill
+            (e.g. via height:'100%') when it wants to fit without scrolling —
+            pages that don't care just render at their natural height as
+            normal, and overflow still falls through to this Box's own
+            overflowY:auto. */}
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

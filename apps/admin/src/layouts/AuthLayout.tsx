@@ -20,7 +20,7 @@ export default function AuthLayout() {
   const theme = useTheme();
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', overflowY: 'auto', bgcolor: 'background.default' }}>
       {/* Branding panel */}
       <Box
         sx={{

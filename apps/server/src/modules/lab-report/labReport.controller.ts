@@ -13,6 +13,12 @@ export const labReportController = {
     sendSuccess(res, report, 'Lab test requested', HTTP_STATUS.CREATED);
   }),
 
+  uploadOwnReport: asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) throw ApiError.badRequest('No report file was uploaded');
+    const report = await labReportService.selfUpload(req.user!.id, req.body.testType, req.file.buffer);
+    sendSuccess(res, report, 'Test report uploaded', HTTP_STATUS.CREATED);
+  }),
+
   listForPatient: asyncHandler(async (req: Request, res: Response) => {
     let patientId = req.query.patientId as string | undefined;
     if (req.user!.role === 'patient') {

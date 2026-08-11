@@ -122,6 +122,8 @@ export default function ConsultationPage() {
 
   const vitalColumns: DataTableColumn<Vital>[] = [
     { key: 'date', header: 'Date', render: (row) => format(new Date(row.recordedAt), 'MMM d, yyyy p') },
+    { key: 'age', header: 'Age', render: (row) => row.age ?? '—' },
+    { key: 'gender', header: 'Gender', render: (row) => row.gender ?? '—' },
     {
       key: 'bp',
       header: 'Blood pressure',
@@ -135,6 +137,9 @@ export default function ConsultationPage() {
     { key: 'spo2', header: 'SpO2', render: (row) => row.oxygenSaturation ?? '—' },
     { key: 'bmi', header: 'BMI', render: (row) => row.bmi ?? '—' },
     { key: 'bloodSugar', header: 'Blood sugar', render: (row) => row.bloodSugar ?? '—' },
+    { key: 'hemoglobin', header: 'Hemoglobin', render: (row) => row.hemoglobin ?? '—' },
+    { key: 'comorbidity', header: 'Comorbidity', render: (row) => row.comorbidity ?? '—' },
+    { key: 'complaints', header: 'Complaints', render: (row) => row.complaints ?? '—' },
     { key: 'symptoms', header: 'Symptoms', render: (row) => row.symptoms ?? '—' },
   ];
 
@@ -169,6 +174,17 @@ export default function ConsultationPage() {
                   <Typography variant="body1" color="text.secondary">
                     <strong>Name:</strong> {patientName}
                   </Typography>
+                  {patientInfo?.age !== undefined && (
+                    <Typography variant="body1" color="text.secondary">
+                      <strong>Age:</strong> {patientInfo.age}
+                    </Typography>
+                  )}
+                  {patientInfo?.gender && (
+                    <Typography variant="body1" color="text.secondary">
+                      <strong>Gender:</strong>{' '}
+                      {patientInfo.gender.charAt(0).toUpperCase() + patientInfo.gender.slice(1)}
+                    </Typography>
+                  )}
                   {consultation.chiefComplaint && (
                     <Typography variant="body1" color="text.secondary">
                       <strong>Chief Complaint:</strong> {consultation.chiefComplaint}

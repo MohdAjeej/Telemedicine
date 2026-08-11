@@ -5,11 +5,11 @@ import { authorize } from '../../middlewares/role.middleware';
 import { validateRequest } from '../../middlewares/validate.middleware';
 import { videoUpload } from '../../config/multer.config';
 import { recordingController } from './recording.controller';
-import { appointmentIdParamValidation } from './recording.validation';
+import { appointmentIdParamValidation, recordingIdValidation } from './recording.validation';
 
 const router = Router();
 
-router.use(authenticate, authorize(ROLES.DOCTOR, ROLES.HEALTH_OFFICER));
+router.use(authenticate, authorize(ROLES.DOCTOR));
 
 router.post(
   '/:appointmentId',
@@ -20,5 +20,7 @@ router.post(
 );
 
 router.get('/:appointmentId', appointmentIdParamValidation, validateRequest, recordingController.listForAppointment);
+
+router.delete('/:id', recordingIdValidation, validateRequest, recordingController.remove);
 
 export default router;

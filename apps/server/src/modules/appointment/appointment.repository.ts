@@ -31,12 +31,14 @@ export const appointmentRepository = {
     doctorId: string,
     scheduledStart: Date,
     scheduledEnd: Date,
+    excludeAppointmentId?: string,
   ): Promise<HydratedAppointment | null> {
     return AppointmentModel.findOne({
       doctorId,
       status: { $in: ACTIVE_STATUSES },
       scheduledStart: { $lt: scheduledEnd },
       scheduledEnd: { $gt: scheduledStart },
+      ...(excludeAppointmentId ? { _id: { $ne: excludeAppointmentId } } : {}),
     }).exec();
   },
 
@@ -78,6 +80,14 @@ export const appointmentRepository = {
     extra: { cancelledBy?: string; cancellationReason?: string } = {},
   ): Promise<HydratedAppointment | null> {
     return AppointmentModel.findByIdAndUpdate(id, { $set: { status, ...extra } }, { new: true })
+      .populate({ path: 'patientId', populate: { path: 'userId' } })
+      .populate({ path: 'doctorId', populate: { path: 'userId' } })
+      .populate({ path: 'healthOfficerId', populate: { path: 'userId' } })
+      .exec();
+  },
+
+  reschedule(id: string, scheduledStart: Date, scheduledEnd: Date): Promise<HydratedAppointment | null> {
+    return AppointmentModel.findByIdAndUpdate(id, { $set: { scheduledStart, scheduledEnd } }, { new: true })
       .populate({ path: 'patientId', populate: { path: 'userId' } })
       .populate({ path: 'doctorId', populate: { path: 'userId' } })
       .populate({ path: 'healthOfficerId', populate: { path: 'userId' } })

@@ -28,7 +28,7 @@ services:
       - ./apps/client/src:/repo/apps/client/src
       - ./packages:/repo/packages
     ports:
-      - '5173:5173'
+      - '5183:5183'
 
   admin:
     build:
@@ -42,4 +42,4 @@ services:
       - ./apps/admin/src:/repo/apps/admin/src
       - ./packages:/repo/packages
     ports:
-      - '5174:5174'
+      - '5184:5184'

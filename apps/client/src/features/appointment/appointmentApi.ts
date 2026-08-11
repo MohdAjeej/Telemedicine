@@ -14,8 +14,13 @@ export interface BookAppointmentBody {
   hospitalId: string;
   patientId?: string;
   scheduledStart: string;
-  type: 'in_person' | 'video';
   reasonForVisit: string;
+}
+
+export interface RescheduleAppointmentBody {
+  id: string;
+  scheduledStart: string;
+  scheduledEnd?: string;
 }
 
 export const appointmentApi = baseApi.injectEndpoints({
@@ -53,6 +58,10 @@ export const appointmentApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/appointments/${id}/confirm`, method: 'POST' }),
       invalidatesTags: (_result, _error, id) => [{ type: 'Appointment', id }, { type: 'Appointment', id: 'LIST' }],
     }),
+    rescheduleAppointment: builder.mutation<Appointment, RescheduleAppointmentBody>({
+      query: ({ id, ...body }) => ({ url: `/appointments/${id}/reschedule`, method: 'POST', body }),
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Appointment', id }, { type: 'Appointment', id: 'LIST' }],
+    }),
     completeAppointment: builder.mutation<Appointment, string>({
       query: (id) => ({ url: `/appointments/${id}/complete`, method: 'POST' }),
       invalidatesTags: (_result, _error, id) => [{ type: 'Appointment', id }, { type: 'Appointment', id: 'LIST' }],
@@ -73,6 +82,7 @@ export const {
   useGetAppointmentQuery,
   useBookAppointmentMutation,
   useConfirmAppointmentMutation,
+  useRescheduleAppointmentMutation,
   useCompleteAppointmentMutation,
   useMarkAppointmentNoShowMutation,
   useCancelAppointmentMutation,

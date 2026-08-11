@@ -14,6 +14,11 @@ export interface Vital extends BaseEntity {
   height?: number;
   bmi?: number;
   bloodSugar?: number;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  hemoglobin?: number;
+  comorbidity?: string;
+  complaints?: string;
   symptoms?: string;
   notes?: string;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { Button, Chip, MenuItem, Stack, TextField } from '@mui/material';
 import { DataTable, PageHeader, ReportViewerDialog, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
 import type { LabReport, Patient, User } from '@telemedicine/types';
 import { format } from 'date-fns';
@@ -22,6 +22,16 @@ export default function LabReportsPage() {
 
   const columns: DataTableColumn<LabReport>[] = [
     { key: 'test', header: 'Test', render: (row) => row.testType },
+    {
+      key: 'source',
+      header: 'Source',
+      render: (row) =>
+        row.uploadedBy ? (
+          <Chip label="Patient uploaded" size="small" color="info" variant="outlined" />
+        ) : (
+          '—'
+        ),
+    },
     { key: 'requested', header: 'Requested', render: (row) => format(new Date(row.requestedAt), 'MMM d, yyyy') },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     { key: 'summary', header: 'Summary', render: (row) => row.resultSummary ?? '—' },

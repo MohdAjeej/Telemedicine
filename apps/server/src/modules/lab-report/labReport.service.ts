@@ -28,6 +28,28 @@ export const labReportService = {
     return labReportRepository.create({ ...input, hospitalId: toHospitalIdString(patient.hospitalId)! });
   },
 
+  /** A patient uploading their own (already-taken) report — creates the record
+   * and marks it completed in one step, unlike the doctor/health-officer flow
+   * which requests a test first and fills the result in separately. */
+  async selfUpload(patientUserId: string, testType: string, buffer: Buffer) {
+    const patient = await patientRepository.findByUserId(patientUserId);
+    if (!patient) throw ApiError.notFound('Patient profile not found');
+
+    const resultFileUrl = await uploadReportBuffer(buffer);
+    const created = await labReportRepository.create({
+      patientId: patient._id.toString(),
+      hospitalId: toHospitalIdString(patient.hospitalId)!,
+      requestedBy: patientUserId,
+      uploadedBy: patientUserId,
+      testType,
+    });
+    const report = await labReportRepository.updateResult(created._id.toString(), {
+      status: 'completed',
+      resultFileUrl,
+    });
+    return report!;
+  },
+
   async listForPatient(patientId: string) {
     return labReportRepository.findByPatientId(patientId);
   },

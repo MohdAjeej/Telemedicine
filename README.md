@@ -24,8 +24,8 @@ environment variable reference.
 ```
 telemedicine/
 ├── apps/
-│   ├── client/         Patient / Doctor / Health Officer SPA (port 5173)
-│   ├── admin/          Standalone Admin Console SPA (port 5174)
+│   ├── client/         Patient / Doctor / Health Officer SPA (port 5183)
+│   ├── admin/          Standalone Admin Console SPA (port 5184)
 │   └── server/         Express + MongoDB API (port 5050 dev / 5000 in containers)
 │
 ├── packages/
@@ -145,7 +145,7 @@ cp apps/server/.env.example apps/server/.env   # set MONGO_URI, JWT secrets
 cp apps/client/.env.example apps/client/.env
 cp apps/admin/.env.example apps/admin/.env
 
-npm run dev   # runs client (5173), admin (5174), and server (5050) together via Turborepo
+npm run dev   # runs client (5183), admin (5184), and server (5050) together via Turborepo
 ```
 
 Both Vite dev servers proxy `/api` and `/socket.io` to `localhost:5050`

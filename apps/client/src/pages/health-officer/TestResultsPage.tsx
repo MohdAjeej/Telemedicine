@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import {
   Alert,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -162,6 +163,16 @@ export default function TestResultsPage() {
 
   const columns: DataTableColumn<LabReport>[] = [
     { key: 'test', header: 'Test', render: (row) => row.testType },
+    {
+      key: 'source',
+      header: 'Source',
+      render: (row) =>
+        row.uploadedBy ? (
+          <Chip label="Patient uploaded" size="small" color="info" variant="outlined" />
+        ) : (
+          '—'
+        ),
+    },
     { key: 'requested', header: 'Requested', render: (row) => format(new Date(row.requestedAt), 'MMM d, yyyy') },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     { key: 'summary', header: 'Summary', render: (row) => row.resultSummary ?? '—' },

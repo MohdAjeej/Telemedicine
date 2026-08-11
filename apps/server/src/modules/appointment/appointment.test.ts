@@ -167,4 +167,99 @@ describe('Appointment booking flow', () => {
       .send({ patientId, doctorId: doctorProfileId, hospitalId, scheduledStart, type: 'in_person', reasonForVisit: 'B' });
     expect(second.status).toBe(409);
   });
+
+  it('always books a video consultation regardless of the requested type', async () => {
+    const response = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({
+        patientId,
+        doctorId: doctorProfileId,
+        hospitalId,
+        scheduledStart: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+        type: 'in_person',
+        reasonForVisit: 'Should still be video',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.type).toBe('video');
+  });
+
+  it('lets a health officer reschedule a pending appointment', async () => {
+    const bookResponse = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({
+        patientId,
+        doctorId: doctorProfileId,
+        hospitalId,
+        scheduledStart: new Date(Date.now() + 144 * 60 * 60 * 1000).toISOString(),
+        type: 'video',
+        reasonForVisit: 'Reschedule me',
+      });
+    const appointmentId = bookResponse.body.data._id;
+    const newStart = new Date(Date.now() + 150 * 60 * 60 * 1000).toISOString();
+
+    const rescheduleResponse = await request(app)
+      .post(`/api/v1/appointments/${appointmentId}/reschedule`)
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({ scheduledStart: newStart });
+
+    expect(rescheduleResponse.status).toBe(200);
+    expect(new Date(rescheduleResponse.body.data.scheduledStart).toISOString()).toBe(newStart);
+  });
+
+  it('rejects a doctor trying to reschedule an appointment', async () => {
+    const bookResponse = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({
+        patientId,
+        doctorId: doctorProfileId,
+        hospitalId,
+        scheduledStart: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
+        type: 'video',
+        reasonForVisit: 'Doctor should not reschedule',
+      });
+    const appointmentId = bookResponse.body.data._id;
+
+    const rescheduleAttempt = await request(app)
+      .post(`/api/v1/appointments/${appointmentId}/reschedule`)
+      .set('Authorization', `Bearer ${doctorToken}`)
+      .send({ scheduledStart: new Date(Date.now() + 172 * 60 * 60 * 1000).toISOString() });
+
+    expect(rescheduleAttempt.status).toBe(403);
+  });
+
+  it('rejects rescheduling once the consultation has already started', async () => {
+    const bookResponse = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({
+        patientId,
+        doctorId: doctorProfileId,
+        hospitalId,
+        scheduledStart: new Date(Date.now() + 196 * 60 * 60 * 1000).toISOString(),
+        type: 'video',
+        reasonForVisit: 'In-progress consultation',
+      });
+    const appointmentId = bookResponse.body.data._id;
+
+    await request(app)
+      .post(`/api/v1/appointments/${appointmentId}/confirm`)
+      .set('Authorization', `Bearer ${doctorToken}`);
+
+    const startConsultation = await request(app)
+      .post('/api/v1/consultations')
+      .set('Authorization', `Bearer ${doctorToken}`)
+      .send({ appointmentId, chiefComplaint: 'Testing' });
+    expect(startConsultation.status).toBe(201);
+
+    const rescheduleAttempt = await request(app)
+      .post(`/api/v1/appointments/${appointmentId}/reschedule`)
+      .set('Authorization', `Bearer ${healthOfficerToken}`)
+      .send({ scheduledStart: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString() });
+
+    expect(rescheduleAttempt.status).toBe(400);
+  });
 });

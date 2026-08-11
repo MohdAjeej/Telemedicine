@@ -23,7 +23,7 @@ npm run dev             # runs every app via turbo, including this one
 cd apps/admin && npm run dev
 ```
 
-Runs at `http://localhost:5174` and proxies `/api` and `/socket.io` to the
+Runs at `http://localhost:5184` and proxies `/api` and `/socket.io` to the
 server on `http://localhost:5050` (see `vite.config.ts`).
 
 With Docker: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up admin server mongo`.

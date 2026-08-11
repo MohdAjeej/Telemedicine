@@ -6,7 +6,7 @@
 |---|---|---|---|
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production` |
 | `PORT` | no | `5050` | HTTP port the API listens on (deliberately not 5000, a common collision) |
-| `CLIENT_URL` | no | `http://localhost:5173` | Comma-separated list of allowed CORS/socket origins |
+| `CLIENT_URL` | no | `http://localhost:5183` | Comma-separated list of allowed CORS/socket origins |
 | `MONGO_URI` | **yes** | — | MongoDB connection string |
 | `JWT_ACCESS_SECRET` | **yes** | — | Signing secret for 15-minute access tokens |
 | `JWT_ACCESS_EXPIRES_IN` | no | `15m` | Access token lifetime |

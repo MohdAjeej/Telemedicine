@@ -6,6 +6,7 @@ import { doctorRepository } from '../doctor/doctor.repository';
 import { patientRepository } from '../patient/patient.repository';
 import { healthOfficerRepository } from '../health-officer/healthOfficer.repository';
 import { notificationService } from '../notification/notification.service';
+import { consultationRepository } from '../consultation/consultation.repository';
 import { appointmentRepository } from './appointment.repository';
 import {
   emitAppointmentCancelled,
@@ -13,7 +14,12 @@ import {
   emitAppointmentUpdated,
   participantUserIds,
 } from './appointment.socket';
-import type { BookAppointmentInput, ListAppointmentsQuery, RequestActor } from './appointment.types';
+import type {
+  BookAppointmentInput,
+  ListAppointmentsQuery,
+  RequestActor,
+  RescheduleAppointmentInput,
+} from './appointment.types';
 
 async function notifyParticipant(
   userId: string | undefined,
@@ -103,7 +109,9 @@ export const appointmentService = {
       healthOfficerId: officer._id.toString(),
       scheduledStart,
       scheduledEnd,
-      type: input.type,
+      // The appointment system is video-consultation-only — ignore whatever
+      // the client sends and always book video, regardless of input.
+      type: 'video',
       reasonForVisit: input.reasonForVisit,
       createdBy: actorUserId,
     });
@@ -170,6 +178,67 @@ export const appointmentService = {
       actorId: actorUserId,
       hospitalId: updated?.hospitalId?.toString(),
       action: 'appointment.confirmed',
+      entityType: 'Appointment',
+      entityId: id,
+    });
+
+    return updated;
+  },
+
+  /** Bookable only by a Health Officer, and only before the consultation has actually started. */
+  async reschedule(id: string, actorUserId: string, actorRole: string, input: RescheduleAppointmentInput) {
+    if (actorRole !== 'health_officer') {
+      throw ApiError.forbidden('Only a health officer can reschedule appointments');
+    }
+
+    const appointment = await appointmentRepository.findById(id);
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+    if (['completed', 'cancelled', 'no_show'].includes(appointment.status)) {
+      throw ApiError.badRequest(`Cannot reschedule an appointment that is already ${appointment.status}`);
+    }
+
+    const consultation = await consultationRepository.findByAppointmentId(id);
+    if (consultation?.status === 'in_progress') {
+      throw ApiError.badRequest('Cannot reschedule — the consultation has already started');
+    }
+
+    const scheduledStart = new Date(input.scheduledStart);
+    if (Number.isNaN(scheduledStart.getTime())) {
+      throw ApiError.badRequest('Invalid appointment start time');
+    }
+    const scheduledEnd = input.scheduledEnd
+      ? new Date(input.scheduledEnd)
+      : new Date(scheduledStart.getTime() + DEFAULT_SLOT_DURATION_MS);
+
+    // appointment.doctorId comes back populated (a full Doctor profile doc, not
+    // a bare id) from appointmentRepository.findById — unwrap its _id rather
+    // than stringifying the populated document itself.
+    const doctorId = String((appointment.doctorId as unknown as { _id?: unknown })._id ?? appointment.doctorId);
+    const conflict = await appointmentRepository.findConflicting(
+      doctorId,
+      scheduledStart,
+      scheduledEnd,
+      id,
+    );
+    if (conflict) {
+      throw ApiError.conflict('This doctor is not available at the selected time');
+    }
+
+    const updated = await appointmentRepository.reschedule(id, scheduledStart, scheduledEnd);
+
+    if (updated) {
+      emitAppointmentUpdated(updated);
+      const { patientUserId, doctorUserId } = participantUserIds(updated);
+      const title = 'Appointment rescheduled';
+      const body = `The appointment has been rescheduled to ${scheduledStart.toLocaleString()}.`;
+      await notifyParticipant(patientUserId, title, body, id);
+      await notifyParticipant(doctorUserId, title, body, id);
+    }
+
+    await recordAuditLog({
+      actorId: actorUserId,
+      hospitalId: updated?.hospitalId?.toString(),
+      action: 'appointment.rescheduled',
       entityType: 'Appointment',
       entityId: id,
     });

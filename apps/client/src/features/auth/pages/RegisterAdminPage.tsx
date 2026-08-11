@@ -10,7 +10,7 @@ import { registerAdminSchema, type RegisterAdminInput } from '@telemedicine/vali
 import { FormTextField } from '@telemedicine/ui';
 import { useRegisterAdminMutation } from '../authApi';
 
-const ADMIN_CONSOLE_URL = import.meta.env.VITE_ADMIN_CONSOLE_URL ?? 'http://localhost:5174';
+const ADMIN_CONSOLE_URL = import.meta.env.VITE_ADMIN_CONSOLE_URL ?? 'http://localhost:5184';
 
 export default function RegisterAdminPage() {
   const [registerAdmin, { isLoading }] = useRegisterAdminMutation();

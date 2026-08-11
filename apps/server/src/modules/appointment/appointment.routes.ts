@@ -9,6 +9,7 @@ import {
   bookAppointmentValidation,
   cancelAppointmentValidation,
   listAppointmentsValidation,
+  rescheduleAppointmentValidation,
 } from './appointment.validation';
 
 const router = Router();
@@ -39,6 +40,15 @@ router.post(
   validateRequest,
   requireAppointmentAccess,
   appointmentController.confirm,
+);
+router.post(
+  '/:id/reschedule',
+  authorize('health_officer'),
+  appointmentIdValidation,
+  rescheduleAppointmentValidation,
+  validateRequest,
+  requireAppointmentAccess,
+  appointmentController.reschedule,
 );
 router.post(
   '/:id/complete',

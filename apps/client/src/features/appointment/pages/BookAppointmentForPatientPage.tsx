@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Button, MenuItem, Stack, TextField } from '@mui/material';
+import { Alert, Button, Chip, MenuItem, Stack, TextField } from '@mui/material';
+import VideoCameraFrontOutlinedIcon from '@mui/icons-material/VideoCameraFrontOutlined';
 import { bookAppointmentSchema, type BookAppointmentInput } from '@telemedicine/validation';
 import { FormTextField, PageHeader } from '@telemedicine/ui';
 import type { Doctor, Patient, User } from '@telemedicine/types';
@@ -47,7 +48,6 @@ export default function BookAppointmentForPatientPage() {
       doctorId: '',
       patientId: '',
       scheduledStart: '',
-      type: 'in_person',
       reasonForVisit: '',
     },
   });
@@ -78,8 +78,8 @@ export default function BookAppointmentForPatientPage() {
   return (
     <>
       <PageHeader
-        title="Book Appointment for a Patient"
-        subtitle="Schedule a visit on behalf of a patient at your hospital"
+        title="Book Video Consultation"
+        subtitle="Schedule a video consultation on behalf of a patient at your hospital"
       />
       <Stack
         component="form"
@@ -88,6 +88,13 @@ export default function BookAppointmentForPatientPage() {
         noValidate
         sx={{ maxWidth: 480 }}
       >
+        <Chip
+          icon={<VideoCameraFrontOutlinedIcon />}
+          label="Video Consultation"
+          color="primary"
+          variant="outlined"
+          sx={{ alignSelf: 'flex-start' }}
+        />
         {formError && <Alert severity="error">{formError}</Alert>}
         <Controller
           name="patientId"
@@ -137,16 +144,6 @@ export default function BookAppointmentForPatientPage() {
           label="Preferred date & time"
           type="datetime-local"
           InputLabelProps={{ shrink: true }}
-        />
-        <Controller
-          name="type"
-          control={control}
-          render={({ field }) => (
-            <TextField {...field} select label="Consultation type" fullWidth>
-              <MenuItem value="in_person">In-person</MenuItem>
-              <MenuItem value="video">Video</MenuItem>
-            </TextField>
-          )}
         />
         <FormTextField
           name="reasonForVisit"

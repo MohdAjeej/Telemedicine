@@ -16,6 +16,11 @@ export interface VitalDocument {
   height?: number;
   bmi?: number;
   bloodSugar?: number;
+  age?: number;
+  gender?: 'male' | 'female' | 'other';
+  hemoglobin?: number;
+  comorbidity?: string;
+  complaints?: string;
   symptoms?: string;
   notes?: string;
   createdAt: Date;
@@ -40,6 +45,11 @@ const vitalSchema = new Schema<VitalDocument>(
     height: { type: Number },
     bmi: { type: Number },
     bloodSugar: { type: Number },
+    age: { type: Number },
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    hemoglobin: { type: Number },
+    comorbidity: { type: String },
+    complaints: { type: String },
     symptoms: { type: String },
     notes: { type: String },
   },

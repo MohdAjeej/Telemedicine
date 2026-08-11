@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, Button, MenuItem, Paper, Snackbar, Stack, Typography } from '@mui/material';
+import { Alert, Button, Grid, MenuItem, Paper, Snackbar, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { ChangePasswordForm, FormMultiSelect, FormTextField, LoadingSpinner, PageHeader } from '@telemedicine/ui';
 import { SPECIALTIES } from '@telemedicine/constants';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
@@ -50,14 +50,22 @@ function AccountDetailsSection() {
   };
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Stack component="form" spacing={2.5} onSubmit={handleSubmit(onSubmit)} sx={{ maxWidth: 480 }}>
+    <Paper sx={{ p: 2.5 }}>
+      <Stack component="form" spacing={1.5} onSubmit={handleSubmit(onSubmit)} sx={{ maxWidth: 640 }}>
         <Typography variant="h6" fontWeight={600}>
           Account Details
         </Typography>
-        <FormTextField name="firstName" control={control} label="First name" />
-        <FormTextField name="lastName" control={control} label="Last name" />
-        <FormTextField name="phone" control={control} label="Phone" />
+        <Grid container spacing={1.5}>
+          <Grid item xs={12} sm={6}>
+            <FormTextField name="firstName" control={control} label="First name" />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField name="lastName" control={control} label="Last name" />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField name="phone" control={control} label="Phone" />
+          </Grid>
+        </Grid>
         <Button type="submit" variant="contained" disabled={isSaving} sx={{ alignSelf: 'flex-start' }}>
           Save changes
         </Button>
@@ -77,6 +85,7 @@ export default function DoctorProfilePage() {
   const [updateProfile, { isLoading: isSaving }] = useUpdateMyDoctorProfileMutation();
   const [changePassword] = useChangePasswordMutation();
   const [saved, setSaved] = useState(false);
+  const [tab, setTab] = useState<'account' | 'professional' | 'personal' | 'security'>('account');
 
   const { control, handleSubmit, reset } = useForm<DoctorProfileForm>({
     defaultValues: {
@@ -134,64 +143,108 @@ export default function DoctorProfilePage() {
   return (
     <>
       <PageHeader title="My Profile" subtitle="Keep your account and professional details up to date" />
-      <Stack spacing={3}>
-        <AccountDetailsSection />
+      <Tabs
+        value={tab}
+        onChange={(_e, value) => setTab(value)}
+        sx={{ mb: 2, minHeight: 40, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 40, py: 0.5 } }}
+      >
+        <Tab label="Account" value="account" />
+        <Tab label="Professional Details" value="professional" />
+        <Tab label="Personal Details" value="personal" />
+        <Tab label="Security" value="security" />
+      </Tabs>
 
-        <Paper sx={{ p: 3 }}>
-          <Stack spacing={0.75} sx={{ maxWidth: 480 }}>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-              Contact & Hospital
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              <strong>Email:</strong> {user?.email ?? '—'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              <strong>Hospital Name:</strong> {hospital?.name ?? '—'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              <strong>Hospital Address:</strong>{' '}
-              {hospital?.address
-                ? [hospital.address.street, hospital.address.city, hospital.address.state, hospital.address.country]
-                    .filter(Boolean)
-                    .join(', ')
-                : '—'}
-            </Typography>
-          </Stack>
-        </Paper>
+      {tab === 'account' && (
+        <Stack spacing={2}>
+          <AccountDetailsSection />
+          <Paper sx={{ p: 2 }}>
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                Contact & Hospital
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Email:</strong> {user?.email ?? '—'} &nbsp;·&nbsp; <strong>Hospital:</strong>{' '}
+                {hospital?.name ?? '—'}
+                {hospital?.address
+                  ? ` — ${[hospital.address.street, hospital.address.city, hospital.address.state, hospital.address.country]
+                      .filter(Boolean)
+                      .join(', ')}`
+                  : ''}
+              </Typography>
+            </Stack>
+          </Paper>
+        </Stack>
+      )}
 
-        <Paper sx={{ p: 3 }}>
-          <Stack component="form" spacing={2.5} onSubmit={handleSubmit(onSubmit)} sx={{ maxWidth: 480 }}>
+      {tab === 'professional' && (
+        <Paper sx={{ p: 2.5 }}>
+          <Stack component="form" spacing={1.5} onSubmit={handleSubmit(onSubmit)}>
             <Typography variant="h6" fontWeight={600}>
               Professional Details
             </Typography>
-            <FormTextField name="department" control={control} label="Department" />
-            <FormMultiSelect name="specialization" control={control} label="Specialist" options={SPECIALTIES} required />
-            <FormTextField name="qualifications" control={control} label="Degree" helperText="Comma-separated, e.g. MBBS, MD" />
-            <FormTextField name="experienceYears" control={control} label="Experience (years)" type="number" />
-            <FormTextField name="bio" control={control} label="Bio" multiline minRows={3} />
-            <FormTextField name="consultationFee" control={control} label="Consultation fee" type="number" />
-
-            <Typography variant="subtitle2" fontWeight={600} sx={{ pt: 1 }}>
-              Personal Details
-            </Typography>
-            <FormTextField name="age" control={control} label="Age" type="number" />
-            <FormTextField name="gender" control={control} label="Gender" select>
-              <MenuItem value="">Not specified</MenuItem>
-              <MenuItem value="male">Male</MenuItem>
-              <MenuItem value="female">Female</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
-            </FormTextField>
-            <FormTextField name="bloodGroup" control={control} label="Blood Group" />
-            <FormTextField name="address" control={control} label="Address" />
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="department" control={control} label="Department" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="experienceYears" control={control} label="Experience (years)" type="number" />
+              </Grid>
+              <Grid item xs={12}>
+                <FormMultiSelect name="specialization" control={control} label="Specialist" options={SPECIALTIES} required />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="qualifications" control={control} label="Degree" helperText="Comma-separated, e.g. MBBS, MD" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="consultationFee" control={control} label="Consultation fee" type="number" />
+              </Grid>
+              <Grid item xs={12}>
+                <FormTextField name="bio" control={control} label="Bio" multiline minRows={2} />
+              </Grid>
+            </Grid>
 
             <Button type="submit" variant="contained" disabled={isSaving} sx={{ alignSelf: 'flex-start' }}>
               Save changes
             </Button>
           </Stack>
         </Paper>
+      )}
 
-        <ChangePasswordForm onSubmit={(values) => changePassword(values).unwrap()} />
-      </Stack>
+      {tab === 'personal' && (
+        <Paper sx={{ p: 2.5 }}>
+          <Stack component="form" spacing={1.5} onSubmit={handleSubmit(onSubmit)}>
+            <Typography variant="h6" fontWeight={600}>
+              Personal Details
+            </Typography>
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="age" control={control} label="Age" type="number" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="gender" control={control} label="Gender" select>
+                  <MenuItem value="">Not specified</MenuItem>
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </FormTextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="bloodGroup" control={control} label="Blood Group" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField name="address" control={control} label="Address" />
+              </Grid>
+            </Grid>
+
+            <Button type="submit" variant="contained" disabled={isSaving} sx={{ alignSelf: 'flex-start' }}>
+              Save changes
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+
+      {tab === 'security' && <ChangePasswordForm onSubmit={(values) => changePassword(values).unwrap()} />}
+
       <Snackbar open={saved} autoHideDuration={3000} onClose={() => setSaved(false)}>
         <Alert severity="success" onClose={() => setSaved(false)}>
           Profile updated

@@ -11,6 +11,11 @@ export const recordVitalValidation = [
   body('weight').optional().isFloat({ min: 0 }),
   body('height').optional().isFloat({ min: 0 }),
   body('bloodSugar').optional().isFloat({ min: 0 }),
+  body('age').optional().isInt({ min: 0, max: 150 }),
+  body('gender').optional().isIn(['male', 'female', 'other']),
+  body('hemoglobin').optional().isFloat({ min: 0, max: 30 }),
+  body('comorbidity').optional().trim(),
+  body('complaints').optional().trim(),
   body('symptoms').optional().trim(),
 ];
 

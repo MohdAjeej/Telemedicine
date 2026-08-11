@@ -1,16 +1,9 @@
-import { useEffect, useState, type WheelEvent } from 'react';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip } from '@mui/material';
+import { useEffect, useState, type ReactNode, type WheelEvent } from 'react';
+import { Box, Dialog, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import ZoomInRoundedIcon from '@mui/icons-material/ZoomInRounded';
 import ZoomOutRoundedIcon from '@mui/icons-material/ZoomOutRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
-
-export interface ReportViewerDialogProps {
-  open: boolean;
-  onClose: () => void;
-  url: string | null;
-  title?: string;
-}
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -24,17 +17,25 @@ function isPdfUrl(url: string): boolean {
   }
 }
 
-/** Opens a lab report (image or PDF) in-place instead of navigating to a new tab.
- * Images get zoom in/out controls (buttons + Ctrl+scroll) since <img> has no native
- * zoom; PDFs render in an iframe, which browsers already give a native zoomable viewer. */
-export function ReportViewerDialog({ open, onClose, url, title = 'Report' }: ReportViewerDialogProps) {
+export interface ReportViewerPanelProps {
+  url: string;
+  title?: string;
+  onClose: () => void;
+  /** Rendered in the title bar next to the close button — e.g. a caller-supplied
+   * Maximize/Restore toggle when this panel is embedded (not shown in a Dialog). */
+  extraActions?: ReactNode;
+}
+
+/** The report title bar (zoom controls + actions) and body (image or PDF), factored out
+ * of ReportViewerDialog so a caller can dock it inline in a layout — e.g. beside an
+ * in-progress video call — instead of only ever showing it as an overlay dialog. */
+export function ReportViewerPanel({ url, title = 'Report', onClose, extraActions }: ReportViewerPanelProps) {
   const [zoom, setZoom] = useState(MIN_ZOOM);
 
   useEffect(() => {
-    if (open) setZoom(MIN_ZOOM);
-  }, [open, url]);
+    setZoom(MIN_ZOOM);
+  }, [url]);
 
-  if (!url) return null;
   const isPdf = isPdfUrl(url);
 
   const zoomIn = () => setZoom((value) => Math.min(MAX_ZOOM, value + ZOOM_STEP));
@@ -47,10 +48,17 @@ export function ReportViewerDialog({ open, onClose, url, title = 'Report' }: Rep
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ sx: { height: '90vh' } }}>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-        {title}
-        <Stack direction="row" spacing={0.5} alignItems="center">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}
+      >
+        <Typography variant="subtitle1" fontWeight={600} noWrap>
+          {title}
+        </Typography>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
           {!isPdf && (
             <>
               <Tooltip title="Zoom out">
@@ -74,19 +82,15 @@ export function ReportViewerDialog({ open, onClose, url, title = 'Report' }: Rep
               </Tooltip>
             </>
           )}
+          {extraActions}
           <IconButton size="small" onClick={onClose} aria-label="Close">
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
-      </DialogTitle>
-      <DialogContent
-        dividers
+      </Stack>
+      <Box
         onWheel={isPdf ? undefined : handleWheel}
-        sx={{
-          p: 0,
-          overflow: 'auto',
-          bgcolor: 'grey.900',
-        }}
+        sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'grey.900' }}
       >
         {isPdf ? (
           <iframe src={url} title={title} style={{ width: '100%', height: '100%', border: 'none' }} />
@@ -105,7 +109,27 @@ export function ReportViewerDialog({ open, onClose, url, title = 'Report' }: Rep
             />
           </Box>
         )}
-      </DialogContent>
+      </Box>
+    </Box>
+  );
+}
+
+export interface ReportViewerDialogProps {
+  open: boolean;
+  onClose: () => void;
+  url: string | null;
+  title?: string;
+}
+
+/** Opens a lab report (image or PDF) in a large centered dialog instead of navigating
+ * to a new tab. For pages that need the report to sit alongside other content (e.g. an
+ * active video call) instead of covering the whole screen, use ReportViewerPanel directly. */
+export function ReportViewerDialog({ open, onClose, url, title = 'Report' }: ReportViewerDialogProps) {
+  if (!url) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ sx: { height: '90vh' } }}>
+      <ReportViewerPanel url={url} title={title} onClose={onClose} />
     </Dialog>
   );
 }

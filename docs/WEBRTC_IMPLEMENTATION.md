@@ -717,18 +717,19 @@ iceServers: [
 
 Browsers only expose `navigator.mediaDevices.getUserMedia` in **secure
 contexts** (HTTPS, or `http://localhost`) — a plain-HTTP LAN address like
-`http://192.168.x.x:5173` doesn't qualify, so `getUserMedia` will be
+`http://192.168.x.x:5183` doesn't qualify, so `getUserMedia` will be
 `undefined`. To test with a second physical device on the same network:
 
 1. `apps/client/vite.config.ts` runs the dev server over HTTPS
-   (`@vitejs/plugin-basic-ssl`) with `server.host: true`, so `npm run dev`
-   is reachable at `https://<your-LAN-IP>:5173` from any device on the same
+   (`vite-plugin-mkcert`) with `server.host: true`, so `npm run dev`
+   is reachable at `https://<your-LAN-IP>:5183` from any device on the same
    Wi-Fi/network.
 2. Find your machine's LAN IP (`ipconfig` on Windows) and open
-   `https://<LAN-IP>:5173` on the phone.
-3. The browser will show a "connection not private" warning — this is
-   expected (the cert is self-signed). Tap **Advanced → Proceed** — a
-   one-time step per device.
+   `https://<LAN-IP>:5183` on the phone.
+3. The cert is signed by a locally-trusted mkcert CA, so desktop browsers on
+   the same machine trust it automatically. A second physical device (like a
+   phone) won't have that CA installed, so it'll still show a "connection not
+   private" warning — tap **Advanced → Proceed**, a one-time step per device.
 4. Log in and open the video consultation page as normal; the camera/mic
    permission prompt should now appear.
 
@@ -807,11 +808,11 @@ Safari: Preferences → Websites → Camera/Microphone
 ### Issue 5: `Cannot read properties of undefined (reading 'getUserMedia')` on phone/LAN
 
 **Cause:** `navigator.mediaDevices` doesn't exist outside a secure context.
-Opening the app via a plain-HTTP LAN address (e.g. `http://192.168.x.x:5173`)
+Opening the app via a plain-HTTP LAN address (e.g. `http://192.168.x.x:5183`)
 is not a secure context, so `navigator.mediaDevices` is `undefined`.
 
 **Solution:** See [Testing From a Second Device (Phone) on the LAN](#testing-from-a-second-device-phone-on-the-lan) —
-use the HTTPS LAN URL (`https://<LAN-IP>:5173`) instead of HTTP.
+use the HTTPS LAN URL (`https://<LAN-IP>:5183`) instead of HTTP.
 
 ## Performance Optimization
 

@@ -5,9 +5,13 @@ export const bookAppointmentValidation = [
   body('hospitalId').isMongoId().withMessage('Invalid hospital id'),
   body('scheduledStart').isISO8601().withMessage('A valid start time is required'),
   body('scheduledEnd').optional().isISO8601().withMessage('Invalid end time'),
-  body('type').isIn(['in_person', 'video']).withMessage('Invalid appointment type'),
   body('reasonForVisit').trim().notEmpty().withMessage('Please describe the reason for your visit'),
   body('patientId').isMongoId().withMessage('Invalid patient id'),
+];
+
+export const rescheduleAppointmentValidation = [
+  body('scheduledStart').isISO8601().withMessage('A valid start time is required'),
+  body('scheduledEnd').optional().isISO8601().withMessage('Invalid end time'),
 ];
 
 export const cancelAppointmentValidation = [

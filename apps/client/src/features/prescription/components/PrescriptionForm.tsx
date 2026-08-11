@@ -8,10 +8,9 @@ import { useCreatePrescriptionMutation } from '../prescriptionApi';
 
 interface PrescriptionFormValues {
   comorbidity: string;
-  complaints: string;
   allergy: string;
   otherIllness: string;
-  chiefComplaints: string;
+  familyHistory: string;
   symptoms: string;
   medications: Medication[];
   advice: string;
@@ -40,10 +39,9 @@ export function PrescriptionForm({ consultationId, onSaved, onCancel }: Prescrip
   } = useForm<PrescriptionFormValues>({
     defaultValues: {
       comorbidity: '',
-      complaints: '',
       allergy: '',
       otherIllness: '',
-      chiefComplaints: '',
+      familyHistory: '',
       symptoms: '',
       medications: [{ name: '', dosage: '', frequency: '', durationDays: 7, instructions: '' }],
       advice: '',
@@ -65,10 +63,9 @@ export function PrescriptionForm({ consultationId, onSaved, onCancel }: Prescrip
         consultationId,
         medications: data.medications,
         comorbidity: data.comorbidity || undefined,
-        complaints: data.complaints || undefined,
         allergy: data.allergy || undefined,
         otherIllness: data.otherIllness || undefined,
-        chiefComplaints: data.chiefComplaints || undefined,
+        familyHistory: data.familyHistory || undefined,
         symptoms: data.symptoms || undefined,
         advice: data.advice || undefined,
         provisionalDiagnosis: data.provisionalDiagnosis || undefined,
@@ -105,13 +102,6 @@ export function PrescriptionForm({ consultationId, onSaved, onCancel }: Prescrip
             </Grid>
             <Grid item xs={12} sm={6}>
               <Controller
-                name="complaints"
-                control={control}
-                render={({ field }) => <TextField {...field} label="Complaints" fullWidth />}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Controller
                 name="allergy"
                 control={control}
                 render={({ field }) => <TextField {...field} label="Allergy" fullWidth />}
@@ -126,11 +116,9 @@ export function PrescriptionForm({ consultationId, onSaved, onCancel }: Prescrip
             </Grid>
             <Grid item xs={12} sm={6}>
               <Controller
-                name="chiefComplaints"
+                name="familyHistory"
                 control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Chief Complaints" multiline rows={2} fullWidth />
-                )}
+                render={({ field }) => <TextField {...field} label="Family History" fullWidth />}
               />
             </Grid>
             <Grid item xs={12} sm={6}>

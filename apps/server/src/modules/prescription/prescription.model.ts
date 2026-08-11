@@ -17,10 +17,9 @@ export interface PrescriptionDocument {
   patientId: Schema.Types.ObjectId;
   hospitalId: Schema.Types.ObjectId;
   comorbidity?: string;
-  complaints?: string;
   allergy?: string;
   otherIllness?: string;
-  chiefComplaints?: string;
+  familyHistory?: string;
   symptoms?: string;
   medications: Medication[];
   advice?: string;
@@ -56,10 +55,9 @@ const prescriptionSchema = new Schema<PrescriptionDocument>(
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true, index: true },
     hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     comorbidity: { type: String },
-    complaints: { type: String },
     allergy: { type: String },
     otherIllness: { type: String },
-    chiefComplaints: { type: String },
+    familyHistory: { type: String },
     symptoms: { type: String },
     medications: { type: [medicationSchema], default: [] },
     advice: { type: String },

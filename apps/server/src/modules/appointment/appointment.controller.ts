@@ -40,6 +40,16 @@ export const appointmentController = {
     sendSuccess(res, appointment, 'Appointment confirmed');
   }),
 
+  reschedule: asyncHandler(async (req: Request, res: Response) => {
+    const appointment = await appointmentService.reschedule(
+      req.params.id,
+      req.user!.id,
+      req.user!.role,
+      req.body,
+    );
+    sendSuccess(res, appointment, 'Appointment rescheduled');
+  }),
+
   complete: asyncHandler(async (req: Request, res: Response) => {
     const appointment = await appointmentService.complete(req.params.id, req.user!.id);
     sendSuccess(res, appointment, 'Appointment marked as completed');

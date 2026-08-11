@@ -20,4 +20,9 @@ export const recordingController = {
     const recordings = await recordingService.listForAppointment(req.params.appointmentId, req.user!.id);
     sendSuccess(res, recordings);
   }),
+
+  remove: asyncHandler(async (req: Request, res: Response) => {
+    await recordingService.remove(req.params.id, req.user!.id);
+    sendSuccess(res, null, 'Recording deleted');
+  }),
 };

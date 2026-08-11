@@ -5,6 +5,10 @@ export const requestLabReportValidation = [
   body('testType').trim().notEmpty().withMessage('Test type is required'),
 ];
 
+export const selfUploadLabReportValidation = [
+  body('testType').trim().notEmpty().withMessage('Test type is required'),
+];
+
 export const updateLabReportValidation = [
   body('status').isIn(['requested', 'in_progress', 'completed']).withMessage('Invalid status'),
   body('resultSummary').optional().trim(),

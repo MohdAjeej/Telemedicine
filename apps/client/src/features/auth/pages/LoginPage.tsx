@@ -12,7 +12,7 @@ import { useLoginMutation, useRequestAdminHandoffMutation } from '../authApi';
 import { useAppDispatch } from '../../../app/hooks';
 import { setCredentials } from '../authSlice';
 
-const ADMIN_CONSOLE_URL = import.meta.env.VITE_ADMIN_CONSOLE_URL ?? 'http://localhost:5174';
+const ADMIN_CONSOLE_URL = import.meta.env.VITE_ADMIN_CONSOLE_URL ?? 'http://localhost:5184';
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();

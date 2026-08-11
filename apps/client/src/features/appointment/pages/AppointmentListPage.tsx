@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { Button, Stack, MenuItem, TextField } from '@mui/material';
+import {
+  Button,
+  Stack,
+  MenuItem,
+  TextField,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Alert,
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, PageHeader, StatusBadge, type DataTableColumn } from '@telemedicine/ui';
 import type { Appointment, AppointmentStatus } from '@telemedicine/types';
@@ -11,6 +22,7 @@ import {
   useConfirmAppointmentMutation,
   useListAppointmentsQuery,
   useMarkAppointmentNoShowMutation,
+  useRescheduleAppointmentMutation,
 } from '../appointmentApi';
 
 const STATUS_OPTIONS: Array<{ value: AppointmentStatus | ''; label: string }> = [
@@ -44,10 +56,44 @@ export default function AppointmentListPage() {
   const [completeAppointment] = useCompleteAppointmentMutation();
   const [markNoShow] = useMarkAppointmentNoShowMutation();
   const [cancelAppointment] = useCancelAppointmentMutation();
+  const [rescheduleAppointment, { isLoading: isRescheduling }] = useRescheduleAppointmentMutation();
+
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null);
+  const [rescheduleValue, setRescheduleValue] = useState('');
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
 
   const canManage = role === 'doctor' || role === 'health_officer' || role === 'admin';
-  const canJoinVideo = role === 'doctor' || role === 'health_officer';
-  const roleSegment = role === 'doctor' ? 'doctor' : role === 'health_officer' ? 'health-officer' : '';
+  const canJoinVideo = role === 'doctor' || role === 'patient';
+  const canReschedule = role === 'health_officer';
+  const roleSegment =
+    role === 'doctor' ? 'doctor' : role === 'health_officer' ? 'health-officer' : role === 'patient' ? 'patient' : '';
+
+  const openReschedule = (appointment: Appointment) => {
+    setRescheduleError(null);
+    setRescheduleValue(format(new Date(appointment.scheduledStart), "yyyy-MM-dd'T'HH:mm"));
+    setRescheduleTarget(appointment);
+  };
+
+  const closeReschedule = () => {
+    setRescheduleTarget(null);
+    setRescheduleError(null);
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleTarget || !rescheduleValue) return;
+    setRescheduleError(null);
+    try {
+      await rescheduleAppointment({
+        id: rescheduleTarget._id,
+        scheduledStart: new Date(rescheduleValue).toISOString(),
+      }).unwrap();
+      closeReschedule();
+    } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ?? 'Unable to reschedule appointment';
+      setRescheduleError(message);
+    }
+  };
 
   const columns: DataTableColumn<Appointment>[] = [
     {
@@ -57,7 +103,16 @@ export default function AppointmentListPage() {
     },
     { key: 'patient', header: 'Patient', render: (row) => participantName(row.patientId) },
     { key: 'doctor', header: 'Doctor', render: (row) => participantName(row.doctorId) },
-    { key: 'type', header: 'Type', render: (row) => (row.type === 'video' ? 'Video' : 'In-person') },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (row) =>
+        row.type === 'video' ? (
+          <Chip label="Video Consultation" size="small" color="primary" />
+        ) : (
+          <Chip label="In-person (legacy)" size="small" variant="outlined" />
+        ),
+    },
     { key: 'reason', header: 'Reason', render: (row) => row.reasonForVisit },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     {
@@ -85,6 +140,11 @@ export default function AppointmentListPage() {
                 Join Video
               </Button>
             </>
+          )}
+          {canReschedule && (row.status === 'pending' || row.status === 'confirmed') && (
+            <Button size="small" variant="outlined" onClick={() => openReschedule(row)}>
+              Reschedule
+            </Button>
           )}
           {canManage && row.status === 'pending' && (
             <Button size="small" variant="outlined" onClick={() => confirmAppointment(row._id)}>
@@ -118,8 +178,8 @@ export default function AppointmentListPage() {
   return (
     <>
       <PageHeader
-        title="Appointments"
-        subtitle="Track and manage appointment status"
+        title="Video Consultations"
+        subtitle="Track and manage video consultation appointments"
         actions={
           <TextField
             select
@@ -152,6 +212,33 @@ export default function AppointmentListPage() {
         onRowsPerPageChange={() => {}}
         emptyTitle="No appointments found"
       />
+
+      <Dialog open={!!rescheduleTarget} onClose={closeReschedule} maxWidth="xs" fullWidth>
+        <DialogTitle>Reschedule Video Consultation</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {rescheduleError && <Alert severity="error">{rescheduleError}</Alert>}
+            <TextField
+              label="New date & time"
+              type="datetime-local"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={rescheduleValue}
+              onChange={(event) => setRescheduleValue(event.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closeReschedule}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleReschedule}
+            disabled={isRescheduling || !rescheduleValue}
+          >
+            {isRescheduling ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

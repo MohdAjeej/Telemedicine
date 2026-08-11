@@ -6,6 +6,11 @@ html,
 body,
 #root {
   height: 100%;
+  /* The app shell (DashboardShell) owns scrolling itself via its own
+     content pane — keeping the document body non-scrolling means a MUI
+     modal/drawer that locks body overflow while open can never leave the
+     page stuck unscrollable after it closes. */
+  overflow: hidden;
 }
 
 body {

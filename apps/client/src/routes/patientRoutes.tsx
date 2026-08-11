@@ -6,9 +6,13 @@ import PrescriptionsPage from '../features/prescription/pages/PrescriptionsPage'
 import TestResultsPage from '../features/labReport/pages/TestResultsPage';
 import ConsultationHistoryPage from '../pages/patient/ConsultationHistoryPage';
 import ConsultationDetailPage from '../pages/patient/ConsultationDetailPage';
+import AppointmentListPage from '../features/appointment/pages/AppointmentListPage';
+import VideoConsultationPage from '../pages/shared/VideoConsultationPage';
 
 export const patientRoutes: RouteObject[] = [
   { index: true, element: <PatientDashboardPage /> },
+  { path: 'appointments', element: <AppointmentListPage /> },
+  { path: 'video/:appointmentId', element: <VideoConsultationPage /> },
   { path: 'consultations', element: <ConsultationHistoryPage /> },
   { path: 'consultations/:id', element: <ConsultationDetailPage /> },
   { path: 'vitals', element: <VitalsPage /> },

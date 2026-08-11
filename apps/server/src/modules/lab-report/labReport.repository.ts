@@ -5,6 +5,7 @@ export const labReportRepository = {
     patientId: string;
     hospitalId: string;
     requestedBy: string;
+    uploadedBy?: string;
     testType: string;
   }): Promise<HydratedLabReport> {
     return LabReportModel.create(input);

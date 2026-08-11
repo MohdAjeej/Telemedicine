@@ -31,7 +31,11 @@ export const recordingApi = baseApi.injectEndpoints({
       transformResponse: (response: { data: Recording }) => response.data,
       invalidatesTags: ['Recording'],
     }),
+    deleteRecording: builder.mutation<void, string>({
+      query: (id) => ({ url: `/recordings/${id}`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, id) => [{ type: 'Recording', id }, 'Recording'],
+    }),
   }),
 });
 
-export const { useListRecordingsQuery, useUploadRecordingMutation } = recordingApi;
+export const { useListRecordingsQuery, useUploadRecordingMutation, useDeleteRecordingMutation } = recordingApi;

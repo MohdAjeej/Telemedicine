@@ -7,6 +7,7 @@ import { labReportController } from './labReport.controller';
 import {
   labReportIdValidation,
   requestLabReportValidation,
+  selfUploadLabReportValidation,
   updateLabReportValidation,
 } from './labReport.validation';
 
@@ -21,6 +22,16 @@ router.post(
   requestLabReportValidation,
   validateRequest,
   labReportController.request,
+);
+router.post(
+  '/self-upload',
+  authorize('patient'),
+  // multer must run first — it's what parses the multipart body, so
+  // body('testType') has nothing to validate until after it runs.
+  upload.single('report'),
+  selfUploadLabReportValidation,
+  validateRequest,
+  labReportController.uploadOwnReport,
 );
 router.get('/:id', labReportIdValidation, validateRequest, labReportController.getById);
 router.patch(

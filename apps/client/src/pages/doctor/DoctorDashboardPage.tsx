@@ -1,4 +1,4 @@
-import { Grid, Stack, Button } from '@mui/material';
+import { Chip, Grid, Stack, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
@@ -30,6 +30,16 @@ export default function DoctorDashboardPage() {
   const columns: DataTableColumn<Appointment>[] = [
     { key: 'time', header: 'Time', render: (row) => format(new Date(row.scheduledStart), 'p') },
     { key: 'patient', header: 'Patient', render: (row) => patientName(row.patientId) },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (row) =>
+        row.type === 'video' ? (
+          <Chip label="Video Consultation" size="small" color="primary" />
+        ) : (
+          <Chip label="In-person (legacy)" size="small" variant="outlined" />
+        ),
+    },
     { key: 'reason', header: 'Reason', render: (row) => row.reasonForVisit },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     {
@@ -64,7 +74,7 @@ export default function DoctorDashboardPage() {
     <>
       <PageHeader
         title="Doctor Dashboard"
-        subtitle="Today's schedule at a glance"
+        subtitle="Today's video consultation schedule at a glance"
         actions={
           <Stack direction="row" spacing={2}>
             <Button variant="outlined" onClick={() => navigate('/app/doctor/consultations')}>

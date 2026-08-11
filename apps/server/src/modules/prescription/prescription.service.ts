@@ -7,10 +7,9 @@ export interface CreatePrescriptionInput {
   consultationId: string;
   medications: Medication[];
   comorbidity?: string;
-  complaints?: string;
   allergy?: string;
   otherIllness?: string;
-  chiefComplaints?: string;
+  familyHistory?: string;
   symptoms?: string;
   advice?: string;
   provisionalDiagnosis?: string;
@@ -40,10 +39,9 @@ export const prescriptionService = {
       hospitalId: consultation.hospitalId.toString(),
       medications: input.medications,
       comorbidity: input.comorbidity,
-      complaints: input.complaints,
       allergy: input.allergy,
       otherIllness: input.otherIllness,
-      chiefComplaints: input.chiefComplaints,
+      familyHistory: input.familyHistory,
       symptoms: input.symptoms,
       advice: input.advice,
       provisionalDiagnosis: input.provisionalDiagnosis,

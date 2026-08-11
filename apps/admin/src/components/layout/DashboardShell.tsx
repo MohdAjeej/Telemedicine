@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Avatar,
@@ -13,6 +13,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -23,7 +24,7 @@ import { useLogoutMutation } from '../../features/auth/authApi';
 import { logout as logoutAction } from '../../features/auth/authSlice';
 import NotificationBell from './NotificationBell';
 
-const CLIENT_URL = import.meta.env.VITE_CLIENT_URL ?? 'https://localhost:5173';
+const CLIENT_URL = import.meta.env.VITE_CLIENT_URL ?? 'https://localhost:5183';
 
 const DRAWER_WIDTH = 260;
 const SIDEBAR_BG = '#1e3a8a';
@@ -50,6 +51,14 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const [logoutMutation] = useLogoutMutation();
+  const location = useLocation();
+
+  // Drives the "Admin Console / <Page>" breadcrumb in the app bar — the
+  // active nav item is whichever one's path matches the current route, so
+  // this stays correct for every page without hand-listing titles here.
+  const activeNavItem = navItems.find((item) =>
+    item.end ? location.pathname === item.path : location.pathname.startsWith(item.path),
+  );
 
   // Sent back to the client app's shared login page — not this console's own
   // /login — since that's the one page every role (including admin) signs in
@@ -102,7 +111,7 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <AppBar
         position="fixed"
         color="inherit"
@@ -121,9 +130,21 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-            {roleLabel}
-          </Typography>
+          <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="subtitle1" color="text.secondary" noWrap>
+              {roleLabel}
+            </Typography>
+            {activeNavItem && (
+              <>
+                <Typography variant="subtitle1" color="text.secondary">
+                  /
+                </Typography>
+                <Typography variant="subtitle1" fontWeight={700} noWrap>
+                  {activeNavItem.label}
+                </Typography>
+              </>
+            )}
+          </Stack>
           <NotificationBell />
           <IconButton onClick={(event) => setMenuAnchor(event.currentTarget)}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -180,12 +201,23 @@ export default function DashboardShell({ roleLabel, navItems }: DashboardShellPr
         sx={{
           flexGrow: 1,
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          height: '100%',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
           px: { xs: 2, md: 4 },
           py: 4,
         }}
       >
-        <Toolbar />
-        <Outlet />
+        <Toolbar sx={{ flexShrink: 0 }} />
+        {/* flex:1 + minHeight:0 gives page content a definite height to fill
+            (e.g. via height:'100%') when it wants to fit without scrolling —
+            pages that don't care just render at their natural height as
+            normal, and overflow still falls through to this Box's own
+            overflowY:auto. */}
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

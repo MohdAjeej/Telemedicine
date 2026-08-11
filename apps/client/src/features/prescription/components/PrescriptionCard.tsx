@@ -23,12 +23,11 @@ export interface PrescriptionCardProps {
 
 export function PrescriptionCard({ prescription, patientName, actions }: PrescriptionCardProps) {
   const hasIntakeDetails =
-    prescription.chiefComplaints ||
-    prescription.complaints ||
     prescription.symptoms ||
     prescription.comorbidity ||
     prescription.allergy ||
-    prescription.otherIllness;
+    prescription.otherIllness ||
+    prescription.familyHistory;
 
   const hasClinicalDetails =
     prescription.clinicalFindings || prescription.provisionalDiagnosis || prescription.finalDiagnosis;
@@ -55,12 +54,11 @@ export function PrescriptionCard({ prescription, patientName, actions }: Prescri
         {hasIntakeDetails && (
           <>
             <Stack spacing={0.5} sx={{ mb: 1.5 }}>
-              <Field label="Chief Complaints" value={prescription.chiefComplaints} />
-              <Field label="Complaints" value={prescription.complaints} />
               <Field label="Symptoms" value={prescription.symptoms} />
               <Field label="Comorbidity" value={prescription.comorbidity} />
               <Field label="Allergy" value={prescription.allergy} />
               <Field label="Other Illness" value={prescription.otherIllness} />
+              <Field label="Family History" value={prescription.familyHistory} />
             </Stack>
             <Divider sx={{ mb: 1.5 }} />
           </>
