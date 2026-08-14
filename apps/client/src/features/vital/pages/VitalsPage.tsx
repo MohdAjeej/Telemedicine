@@ -302,7 +302,7 @@ export default function VitalsPage() {
                       <Line
                         type="monotone"
                         dataKey="value"
-                        name={measure.unit ? `${measure.label} (${measure.unit})` : measure.label}
+                        name={'unit' in measure ? `${measure.label} (${measure.unit})` : measure.label}
                         stroke={theme.palette.primary.main}
                         strokeWidth={2}
                         dot={{ r: chartData.length === 1 ? 6 : 3 }}
