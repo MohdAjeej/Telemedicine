@@ -94,7 +94,7 @@ export function useWebRTC({ roomId, accessToken, onRemoteStream, onCallEnded }: 
           throw new Error(
             window.isSecureContext
               ? 'Camera/microphone access is not supported in this browser.'
-              : 'Camera/microphone access requires HTTPS (or localhost). Open this app over a secure connection to join the call.',
+              : 'For video calls, please open this app with HTTPS. Try: https://' + window.location.hostname + ':' + window.location.port,
           );
         }
 

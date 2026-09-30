@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /repo
 
 COPY package.json package-lock.json* ./
@@ -24,7 +24,7 @@ WORKDIR /repo
 RUN npm prune --omit=dev --workspaces --include-workspace-root
 
 # ---- Runtime stage ----
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
